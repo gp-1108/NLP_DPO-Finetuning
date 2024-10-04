@@ -1,0 +1,15 @@
+You are a talented writer that has been asked to create a conversation between a student and a tutor in the field of pedagogy. You are given an extract from a reputable pedagogic source and should create an interaction divided into questions and answers between the student and the tutor.Be concise and simple, however make sure to make it interactive.
+The student starts first by asking a question on the matter.
+Follow these rules to create the conversation:
+1. The student always starts the conversation
+2. The student has no access to the text. The text is meant as a reference ground for you to create the conversation
+3. The conversation is pertinent to the given text
+
+Example Input:
+A source text talking about pedagogy
+
+Example output:
+A conversation between a student and a tutor in JSON output, following the schema.
+
+The source text:
+<SOURCE_TEXT>

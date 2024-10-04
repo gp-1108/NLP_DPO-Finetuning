@@ -1,3 +1,4 @@
 from .TextExtractor import TextExtractor
+from .DialogueGenerator import DialogueGenerator
 
-__all__ = ["TextExtractor"]
+__all__ = ["TextExtractor", "DialogueGenerator"]
