@@ -1,0 +1,5 @@
+*.pyc
+*test*
+dataset_generation/Pedagogy_docs
+dataset_generation/DeLorenzi_scripts
+extracted_text/
