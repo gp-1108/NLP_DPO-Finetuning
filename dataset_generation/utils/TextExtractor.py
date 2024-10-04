@@ -8,7 +8,8 @@ class TextExtractor:
     URL_TOKEN = "<URL_TOKEN>"
     SMALL_WORDS_TOKEN = "<SMALL_WORDS_TOKEN>"
     PUNCTUATION_TOKEN = "<PUNCTUATION_TOKEN>"
-    CHUNK_MIN_LENGTH = 100
+    CHUNK_MIN_LENGTH = 1000
+    CHUNK_MAX_LENGTH = 7000
     
     def __init__(self, pdf_path: str):
         self.pdf_path = pdf_path
@@ -76,14 +77,17 @@ class TextExtractor:
         Returns:
             list[str]: A list of text chunks with some of them merged.
         """
-        matches = ["\n", " ", "\t"]
         if len(chunks) <= 1:
             return chunks
+            
         unified_chunks = [chunks[0]]
+        matches = ["\n", "\t"]
+
         for i in range(1, len(chunks)):
-            if len(unified_chunks[-1]) < self.CHUNK_MIN_LENGTH \
+            if (len(unified_chunks[-1]) < self.CHUNK_MIN_LENGTH \
                 or chunks[i][0] in matches \
-                or chunks[i-1][-1] in matches:
+                or chunks[i-1][-1] in matches) \
+                and len(unified_chunks[-1]) + len(chunks[i]) < self.CHUNK_MAX_LENGTH:
                 unified_chunks[-1] += chunks[i]
             else:
                 unified_chunks.append(chunks[i])
@@ -104,13 +108,16 @@ class TextExtractor:
         while self.PUNCTUATION_TOKEN in self.text and self.punctuation:
             self.text = self.text.replace(self.PUNCTUATION_TOKEN, self.punctuation.pop(0), 1)
 
-    def _remove_small_words(self, min_length: int):
+    def _remove_small_words(self, max_length: int):
         """
-        This function will remove all words that end with a period and have less than
-        min_length characters.
+        This function will remove all small words that end with a period or are part of 
+        abbreviations like 'et al.' or 'e.g.'.
         """
-        self.small_words = re.findall(r"\b\w{1," + str(min_length) + r"}\.\b", self.text)
-        self.text = re.sub(r"\b\w{1," + str(min_length) + r"}\.\b", self.SMALL_WORDS_TOKEN, self.text)
+        # Match small words followed by period and any other characters (like space or more text)
+        small_word_regex = r"\b\w{0," + str(max_length) + r"}\.(?!\n)(?:\s|[^a-zA-Z\n]|\b\w{1}\.)*"
+        self.small_words = re.findall(small_word_regex, self.text)
+        self.text = re.sub(small_word_regex, self.SMALL_WORDS_TOKEN, self.text)
+
     
     def _add_small_words(self):
         """
