@@ -3,11 +3,11 @@ from pydantic import BaseModel
 import os
 
 class InteractionSchema(BaseModel):
-    student: str
-    tutor: str
+    student_question: str
+    tutor_response: str
 
 class DialogueSchema(BaseModel):
-    interactions: list[InteractionSchema]
+    dialogue: list[InteractionSchema]
 
 class DialogueGenerator:
     def __init__(self, jsons_path: str, prompt_path: str, output_dir: str, model: str = "gpt-4o"):
@@ -47,7 +47,7 @@ class DialogueGenerator:
         )
         # Parsing back to python object
         completion = completion.to_dict()
-        dialogue = completion["choices"][0]["message"]["parsed"]["interactions"]
+        dialogue = completion["choices"][0]["message"]["parsed"]["dialogue"]
         return dialogue
     
     def _generate_prompt(self, source_text: str) -> str:
@@ -79,5 +79,3 @@ class DialogueGenerator:
                 if file.endswith(".json"):
                     json_files.append(os.path.join(root, file))
         return json_files
-        
-        
