@@ -17,6 +17,34 @@ class DPOGenerator:
         self.output_dir = output_dir
         self.prompt = open(prompt_path, "r").read()
     
+    def generate_dialogue_tree(self, dialogue: list[dict]) -> list[str]:
+        """
+        This function will generate a dialogue tree based on the given dialogue.
+
+        Args:
+            dialogue (list[dict]): A list of student-tutor interactions. Each interaction is a dictionary
+            with the keys "student_question" and "tutor_response".
+
+        Returns:
+            list[dict]: A list of objects with the format {"student": str, "good_tutor": str, "bad_tutor": str}
+        """
+        generated_tree = []
+        last_tut_response = "// the conversation has just started, no tutor’s response"
+        for interaction in dialogue:
+            student_question = interaction["student_question"]
+            tutor_response = interaction["tutor_response"]
+            adapted_student_response, good_tutor_response, bad_tutor_response = self._query_openai(
+                last_tut_response, student_question, tutor_response
+            )
+            generated_tree.append({
+                "adapted_student_response": adapted_student_response,
+                "good_tutor_response": good_tutor_response,
+                "bad_tutor_response": bad_tutor_response
+            })
+            last_tut_response = good_tutor_response
+        return generated_tree
+
+    
     def _query_openai(self, last_tut_response: str, student_question: str, tutor_response: str) -> str:
         prompt = self._generate_prompt(last_tut_response, student_question, tutor_response)
         completion = self.client.beta.chat.completions.parse(
