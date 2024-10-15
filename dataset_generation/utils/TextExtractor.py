@@ -227,4 +227,4 @@ class TextExtractor:
             return
 
         with open(json_path, 'w', encoding='utf-8') as f:
-            json.dump(chunks, f, indent=2, ensure_ascii=False)
+            json.dump(chunks, f, indent=2)
