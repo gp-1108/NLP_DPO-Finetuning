@@ -38,11 +38,12 @@ class DialogueGenerator:
         for json_file in tqdm(self.json_files, desc="Processing JSON files"):
             text_chunks = self._load_text_chunks(json_file)
             source_texts = self._define_source_texts(text_chunks)
-            dialogue = []
+            dialogues = []
             for source_text in source_texts:
-                dialogue += self.generate_dialogue(source_text)
+                dialogue = self.generate_dialogue(source_text)
+                dialogues.append(dialogue)
             new_json_path = os.path.join(self.output_dir, os.path.basename(json_file))
-            self._save_dialogue(dialogue, new_json_path)
+            self._save_dialogues(dialogues, new_json_path)
 
     def _define_source_texts(self, text_chunks: list[str]) -> list[str]:
         """
@@ -108,16 +109,16 @@ class DialogueGenerator:
         with open(json_path, 'r') as f:
             return json.load(f)
     
-    def _save_dialogue(self, dialogue: list[dict], json_path: str):
+    def _save_dialogues(self, dialogue: list[list[dict]], json_path: str):
         """
-        This function will save the dialogue in a json file.
+        This function will save the dialogues in a json file.
 
         Args:
-            dialogue (list[dict]): The dialogue to be saved.
+            dialogue (list[dict]): The dialogues to be saved.
             json_path (str): The path to the json file.
         """
         with open(json_path, 'w') as f:
-            json.dump(dialogue, f)
+            json.dump(dialogue, f, indent=2)
 
 
     def generate_dialogue(self, source_text: str) -> list[dict]:

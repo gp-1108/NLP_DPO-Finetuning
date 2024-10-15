@@ -1,6 +1,8 @@
 from pydantic import BaseModel
 from openai import OpenAI
 import os
+import json
+from tqdm import tqdm
 
 class ResponseSchema(BaseModel):
     adapted_student_response: str
@@ -8,15 +10,42 @@ class ResponseSchema(BaseModel):
     bad_tutor_response: str
 
 class DPOGenerator:
-    def __init__(self, jsons_path: str, prompt_path: str, output_dir: str, model: str = "gpt-4o"):
+    def __init__(
+            self,
+            jsons_path: str,
+            prompt_path: str,
+            output_dir: str,
+            model: str = "gpt-4o"
+        ):
         self.client = OpenAI(
             api_key=os.getenv("OPENAI_API_KEY")
         )
         self.model = model
         self.json_files = DPOGenerator._load_jsons(jsons_path)
         self.output_dir = output_dir
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
         self.prompt = open(prompt_path, "r").read()
     
+    def generate_dialogue_trees(self):
+        """
+        Generates dialogue trees for each JSON file in the json_files list.
+
+        This method iterates over all JSON files, loads the dialogue data from each file,
+        generates a dialogue tree from the loaded dialogue, and then saves the generated
+        dialogue tree back to the corresponding JSON file.
+
+        Returns:
+            None
+        """
+        for json_file in tqdm(self.json_files, desc="Generating dialogue trees"):
+            dialogues = self._load_dialogues(json_file)
+            dpo_dialogues = []
+            for dialogue in dialogues:
+                dialogue_tree = self.generate_dialogue_tree(dialogue)
+                dpo_dialogues.append(dialogue_tree)
+            self._save_dialogues_tree(dpo_dialogues, json_file)
+
     def generate_dialogue_tree(self, dialogue: list[dict]) -> list[str]:
         """
         This function will generate a dialogue tree based on the given dialogue.
@@ -43,7 +72,34 @@ class DPOGenerator:
             })
             last_tut_response = good_tutor_response
         return generated_tree
+    
+    def _load_dialogues(self, json_file: str) -> list[dict]:
+        """
+        This function will load all the dialogues from the given json file.
 
+        Args:
+            json_file (str): The path to the json file.
+
+        Returns:
+            list[list[dict]]: A list of list of student-tutor interactions. Each interaction is a dictionary
+            with the keys "student_question" and "tutor_response".
+        """
+        with open(json_file, "r") as f:
+            dialogue = json.load(f)
+        return dialogue
+    
+    def _save_dialogues_tree(self, dialogues_tree: list[list[str]], json_file: str):
+        """
+        This function will save the generated dialogue tree to a JSON file.
+        The format will be the same as the input obj file.
+
+        Args:
+            dialogue_tree (list[list[str]]): The generated dialogue trees
+            json_file (str): The path to the json file.
+        """
+        output_file = os.path.join(self.output_dir, os.path.basename(json_file))
+        with open(output_file, "w") as f:
+            json.dump(dialogues_tree, f, indent=2)
     
     def _query_openai(self, last_tut_response: str, student_question: str, tutor_response: str) -> str:
         prompt = self._generate_prompt(last_tut_response, student_question, tutor_response)
