@@ -16,7 +16,7 @@ A sample conversation in this format is as follows:
     {
         "role": "user",
         "content": "How many helicopters can a human eat in one sitting?"
-    },
+    }
 ]
 """
 DELORENZI_CONV_SEPARATOR="<---------->"
