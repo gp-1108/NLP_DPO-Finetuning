@@ -72,7 +72,7 @@ class DialogueGenerator:
         #         source_text += chunk
         #         source_texts.append(source_text)
 
-        # 2. Merge chunks with length around 3K but do overlaps from left and right of 1K
+        # 2. Merge chunks with length around 5K but do overlaps from left and right of 1K
         source_texts = []
         start, end = 0, 0
         length = 0
@@ -87,7 +87,7 @@ class DialogueGenerator:
                 for i in range(start+1, end+1):
                     source_text += text_chunks[i]
                 if end < len(text_chunks) - 1:
-                    source_text += text_chunks[end+1][-1000:]
+                    source_text += text_chunks[end+1][:1000]
                 source_texts.append(source_text)
                 start, end = end+1, end+1
                 length = 0
