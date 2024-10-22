@@ -152,5 +152,4 @@ def main():
     trainer.train()
 
 if __name__ == "__main__":
-    print(os.environ["HF_TOKEN"])
     main()
