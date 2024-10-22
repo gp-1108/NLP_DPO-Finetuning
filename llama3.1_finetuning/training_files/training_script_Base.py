@@ -72,9 +72,13 @@ def load_model_and_tokenizer(load_in_8bit: bool) -> Tuple[PreTrainedModel, PreTr
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
         quantization_config=bnb_config,
-        device_map="auto"
+        device_map="auto",
+        token=os.environ.get("HF_TOKEN", None),
     )
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_id,
+        token=os.environ.get("HF_TOKEN", None),
+    )
     tokenizer.pad_token = "<|finetune_right_pad_id|>"
     tokenizer.eos_token = "<|eot_id|>"
     model.resize_token_embeddings(len(tokenizer))
@@ -148,4 +152,5 @@ def main():
     trainer.train()
 
 if __name__ == "__main__":
+    print(os.environ["HF_TOKEN"])
     main()
