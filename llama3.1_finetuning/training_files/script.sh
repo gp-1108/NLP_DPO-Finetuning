@@ -14,7 +14,8 @@ max_seq_len=120000
 export HF_TOKEN="your token"
 
 cd $project_dir
-singularity exec --nv $sif_image_path python3 $script_path \
+singularity exec --nv -B $base_path $sif_image_path \
+    python3 $script_path \
     --ds_train $train_data \
     --ds_dev $dev_data \
     --run_name $run_name \
