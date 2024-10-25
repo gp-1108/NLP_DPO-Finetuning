@@ -143,7 +143,7 @@ def main():
         eval_dataset=dev_dataset,
         data_collator=collator,
         tokenizer=tokenizer,
-        max_seq_length=128000,
+        max_seq_length=max_seq_length,
         formatting_func=formatting_prompts_func,
     )
     os.environ['WANDB_DISABLED'] = 'true'
