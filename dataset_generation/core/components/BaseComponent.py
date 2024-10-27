@@ -6,6 +6,9 @@ class BaseComponent:
     
     def to_json_str(self):
         raise NotImplementedError
+
+    def from_json_str(self, json_str):
+        raise NotImplementedError
     
     def save(self):
         """
