@@ -2,3 +2,5 @@
 *test*
 dataset_generation/data
 venv/
+llama3.1_finetuning/training_files/trained_models/
+*.sif

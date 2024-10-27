@@ -113,14 +113,12 @@ class TextExtractor:
             str: The text without references.
         """
         # First we need to know how many times the "references" word appears in the text
-        # if it is more than 10, it means that the text has multiple references.
-        # as of right now this is not supported and the text will be returned as is.
         search_text = text.lower()
         references_count = search_text.count("references")
-        if references_count > 10 or references_count == 0:
+        if references_count == 0:
             return text
         
-        # Now we need to find the index at which the "references word appears".
+        # Now we need to find the index at which the "references" word appears.
         # To do it we will progressively look at " references " " references" "references"
         # whichever matches first will be the index at which the references word appears.
         # we will always take the last match as the references are usually at the end of the text.
@@ -131,6 +129,26 @@ class TextExtractor:
             references_index = search_text.rindex(" references")
         elif "references" in search_text:
             references_index = search_text.rindex("references")
+            # In this case we need to check if the word "references" is not part of another word.
+            words = [
+                "coreferences",
+                "crossreferences",
+                "dereferences",
+                "georeferences",
+                "preferences",
+                "references",
+                "subreferences"
+            ]
+            max_length = max(len(word) for word in words)
+            # Now let's see what the program matched
+            left_idx = references_index - max_length if references_index - max_length > 0 else 0
+            right_idx = references_index + len("references")
+            matched_word = search_text[left_idx:right_idx]
+            for word in words:
+                if word in matched_word:
+                    references_index = -1
+                    break
+
         
         return text[:references_index]
     

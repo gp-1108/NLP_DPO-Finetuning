@@ -92,10 +92,7 @@ class Logger:
         """
         self.logger.error(f"{msg}\n{traceback.format_exc()}")
 
-# Initialize a global logger instance
-app_logger = Logger(name='AppLogger')
-
-def log_function_call(func):
+def log_function_call(func, app_logger):
     """
     A decorator to log the execution of a function, its arguments,
     and whether it succeeds or fails.
