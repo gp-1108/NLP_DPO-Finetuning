@@ -13,7 +13,7 @@ class Dialogue(BaseComponent):
         if json_str:
             self.from_json_str(json_str)
         else:
-            if not chunk_ids or not output_file:
+            if chunk_ids is None or output_file is None:
                 raise ValueError("You either load the file from json_str or provide doc_id, chunk_ids, output_file")
 
             super().__init__(

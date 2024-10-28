@@ -11,9 +11,10 @@ class Chunk(BaseSubComponent):
         if json_str:
             self.from_json_str(json_str)
         else:
-            if  not id or \
-                not doc_id or \
-                not text:
+            if  id is None or \
+                doc_id is None or \
+                text is None:
+                print(not id, not doc_id, not text)
                 raise Exception("Chunk: Missing required parameters")
             super().__init__(
                 id=id,

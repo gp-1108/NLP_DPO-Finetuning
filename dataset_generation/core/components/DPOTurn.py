@@ -12,10 +12,10 @@ class DPOTurn(BaseSubComponent):
         if json_str:
             self.from_json_str(json_str)
         else:
-            if  not role or \
-                not positive_sample or \
-                not negative_sample or \
-                not rule_used:
+            if role is None or \
+                positive_sample is None or \
+                negative_sample is None or \
+                rule_used is None:
                 raise Exception("DPOTurn: Missing required parameters")
             if positive_sample and negative_sample:
                 raise Exception("DPOTurn: positive_sample and negative_sample can't be both True")

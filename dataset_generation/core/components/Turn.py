@@ -10,7 +10,7 @@ class Turn(BaseSubComponent):
         if json_str:
             self.from_json_str(json_str)
         else:
-            if not role or not content:
+            if role is None or content is None:
                 raise ValueError("You either load the file from json_str or provide role, content")
 
             super().__init__(

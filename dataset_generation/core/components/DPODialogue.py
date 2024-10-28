@@ -12,9 +12,9 @@ class DPODialogue(BaseComponent):
         if json_str:
             self.from_json_str(json_str)
         else:
-            if  not dialogue_id or \
-                not dpo_id or \
-                not turns:
+            if dialogue_id is None or \
+               dpo_id is None or \
+               turns is None:
                 raise Exception("DPODialogue: Missing required parameters")
             super().__init__(
                 dialogue_id=dialogue_id,

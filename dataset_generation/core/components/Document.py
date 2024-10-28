@@ -13,7 +13,7 @@ class Document(BaseComponent):
         if json_str:
             self.from_json_str(json_str)
         else:
-            if not id or not chunks or not output_file:
+            if id is None or chunks is None or output_file is None:
                 raise ValueError("You either load the file from json_str or provide id, chunks, file_name, output_file")
 
             super().__init__(
@@ -23,8 +23,9 @@ class Document(BaseComponent):
                 file_name=file_name
             )
     
-    def get_id(self):
-        return f"dc_{self.id}"
+    @staticmethod
+    def get_id(id):
+        return f"dc_{id}"
     
     @staticmethod
     def extract_id(id_str):
@@ -32,7 +33,7 @@ class Document(BaseComponent):
     
     def to_json_str(self):
         return json.dumps({
-            "id": self.id,
+            "id": Document.get_id(self.id),
             "file_name": self.file_name,
             "chunks": [chunk.to_json_str() for chunk in self.chunks]
         })
