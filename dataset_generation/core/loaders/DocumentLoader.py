@@ -2,7 +2,7 @@ from ..components.Document import Document
 from .BaseLoader import BaseLoader
 
 class DocumentLoader(BaseLoader):
-    def __init__(self, jsonl_path):
+    def __init__(self, jsonl_path: str):
         super().__init__(jsonl_path)
     
     def load_data(self):
