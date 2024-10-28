@@ -1,6 +1,6 @@
-from .processes import *
-from .components import *
-from .loaders import *
+from . import processes
+from . import components
+from . import loaders
 
 __all__ = [
     "processes",
