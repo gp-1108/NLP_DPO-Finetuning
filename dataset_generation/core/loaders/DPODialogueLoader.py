@@ -1,7 +1,7 @@
 from ..components.DPODialogue import DPODialogue
 from .BaseLoader import BaseLoader
 
-class DPODialogue(BaseLoader):
+class DPODialogueLoader(BaseLoader):
     def __init__(self, jsonl_path):
         super().__init__(jsonl_path)
     
