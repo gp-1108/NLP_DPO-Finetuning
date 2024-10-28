@@ -3,7 +3,7 @@ import json
 
 class Chunk(BaseSubComponent):
     def __init__(self,
-                 id: int=None,
+                 id: str=None,
                  doc_id: str=None,
                  text: str=None,
                  json_str: str = None
@@ -27,12 +27,13 @@ class Chunk(BaseSubComponent):
         doc_id, id = chunk_id.split("_ch_")
         return doc_id, int(id)
     
-    def get_id(self):
-        return f"{self.doc_id}_ch_{self.id}"
+    @staticmethod
+    def get_id(doc_id, chunk_int_id):
+        return f"{doc_id}_ch_{chunk_int_id}"
     
     def to_json_str(self):
         return json.dumps({
-            "id": self.get_id(),
+            "id": self.id,
             "text": self.text
         })
     

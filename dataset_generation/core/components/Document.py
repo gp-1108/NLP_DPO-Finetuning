@@ -6,7 +6,7 @@ class Document(BaseComponent):
     def __init__(self,
                  output_file: str=None,
                  file_name: str=None,
-                 id: int=None,
+                 id: str=None,
                  chunks: list[Chunk]=None,
                  json_str: str = None
                 ):
@@ -24,12 +24,8 @@ class Document(BaseComponent):
             )
     
     @staticmethod
-    def get_id(id):
-        return f"dc_{id}"
-    
-    @staticmethod
-    def extract_id(id_str):
-        return int(id_str.split('_')[1])
+    def get_id(int_id):
+        return f"dc_{int_id}"
     
     def to_json_str(self):
         return json.dumps({
@@ -40,6 +36,6 @@ class Document(BaseComponent):
     
     def from_json_str(self, json_str):
         data = json.loads(json_str)
-        self.id = Document.extract_id(data["id"])
+        self.id = data["id"] 
         self.file_name = data["file_name"]
         self.chunks = [Chunk(json_str=chunk) for chunk in data["chunks"]]
