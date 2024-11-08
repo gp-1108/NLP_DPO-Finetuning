@@ -3,6 +3,9 @@ from pydantic import BaseModel
 import os
 import json
 from tqdm import tqdm
+from ..loaders import DocumentLoader
+from ..components import Chunk, Dialogue, Turn
+from ..loaders import DialogueLoader
 
 class InteractionSchema(BaseModel):
     student_question: str
@@ -12,7 +15,12 @@ class DialogueSchema(BaseModel):
     dialogue: list[InteractionSchema]
 
 class DialogueGenerator:
-    def __init__(self, jsons_path: str, prompt_path: str, output_dir: str, model: str = "gpt-4o"):
+    def __init__(self,
+                 jsonl_file: str,
+                 output_jsonl: str,
+                 prompt_path: str,
+                 model: str = "gpt-4o"
+                ):
         """
         This class is a wrapper around the OpenAI API. It is meant to be used for creating dialogues
         Each json file is a list of strings where each string contains a somewhat coherent piece of text
@@ -25,114 +33,41 @@ class DialogueGenerator:
             api_key=os.getenv("OPENAI_API_KEY")
         )
         self.model = model
-        self.json_files = DialogueGenerator._load_jsons(jsons_path)
-        self.output_dir = output_dir
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        self.docs = DocumentLoader(jsonl_file)
+        self.output_jsonl = output_jsonl
+        self.already_processed = DialogueLoader(output_jsonl)
         self.prompt = open(prompt_path, "r").read() # The prompt with the <SOURCE_TEXT> token to be replaced
     
-    def generate_dialogues(self):
-        """
-        This function will generate dialogues for all json files.
-        """
-        for json_file in tqdm(self.json_files, desc="Processing JSON files"):
-            text_chunks = self._load_text_chunks(json_file)
-            source_texts = self._define_source_texts(text_chunks)
-            dialogues = []
-            for source_text in source_texts:
-                dialogue = self.generate_dialogue(source_text)
-                dialogues.append(dialogue)
-            new_json_path = os.path.join(self.output_dir, os.path.basename(json_file))
-            self._save_dialogues(dialogues, new_json_path)
+    def generate_all(self):
+        for doc in tqdm(self.docs):
+            source_texts = self._define_source_texts(doc.chunks)
+            for chunk_ids, source_text in source_texts:
+                dialogue_id = Dialogue.get_id(chunk_ids)
+                if dialogue_id in self.already_processed:
+                    print(f"Dialogue with ID {dialogue_id} already processed.")
+                    continue
+                dialogue_list = self._query_openai(source_text)
+                dialogue = self.create_dialogue(dialogue_list, dialogue_id)
+                dialogue.save()
 
-    def _define_source_texts(self, text_chunks: list[str]) -> list[str]:
+    def create_dialogue(self, dialogue: list[dict], dialogue_id: str) -> Dialogue:
         """
-        This function will define the source texts for the dialogues given the original text chunks
-        of the pdf file (extracted with the TextExtractor class).
+        This function will create a Dialogue instance from the dialogue list.
 
         Args:
-            text_chunks (list[str]): A list of text chunks.
+            dialogue (list[dict]): A list of dictionaries with the format {"student": str, "tutor": str}
 
         Returns:
-            list[str]: A list of source texts, combining the text chunks.
+            Dialogue: A Dialogue instance.
         """
-        if not text_chunks:
-            return []
-        # [TODO] Carefully think about this function as it is crucial for the quality of the dialogues
-
-        
-        # 1. Merge chunks until the length is around 5K chars
-        # source_texts = []
-        # source_text = text_chunks[0]
-        # for chunk in text_chunks[1:]:
-        #     if len(source_text) + len(chunk) > 5000:
-        #         source_texts.append(source_text)
-        #         source_text = chunk
-        #     else:
-        #         source_text += chunk
-        #         source_texts.append(source_text)
-
-        # 2. Merge chunks with length around 5K but do overlaps from left and right of 1K
-        source_texts = []
-        start, end = 0, 0
-        length = 0
-        while end < len(text_chunks):
-            # First let's check that we have a text longer than 5K
-            length += len(text_chunks[end])
-            if length > 5000:
-                # Now we add the the overlapping chunks from the left and right
-                if start > 0:
-                    source_text = text_chunks[start-1][-1000:]
-                source_text = text_chunks[start]
-                for i in range(start+1, end+1):
-                    source_text += text_chunks[i]
-                if end < len(text_chunks) - 1:
-                    source_text += text_chunks[end+1][:1000]
-                source_texts.append(source_text)
-                start, end = end+1, end+1
-                length = 0
-            else:
-                end += 1
-        return source_texts
-                
-        
-    def _load_text_chunks(self, json_path: str) -> list[str]:
-        """
-        This function will load the text chunks from a json file.
-
-        Args:
-            json_path (str): The path to the json file.
-
-        Returns:
-            list[str]: A list of text chunks.
-        """
-        with open(json_path, 'r') as f:
-            return json.load(f)
-    
-    def _save_dialogues(self, dialogue: list[list[dict]], json_path: str):
-        """
-        This function will save the dialogues in a json file.
-
-        Args:
-            dialogue (list[dict]): The dialogues to be saved.
-            json_path (str): The path to the json file.
-        """
-        with open(json_path, 'w') as f:
-            json.dump(dialogue, f, indent=2)
-
-
-    def generate_dialogue(self, source_text: str) -> list[dict]:
-        """
-        This function will generate a dialogue based on the source text.
-
-        Args:
-            source_text (str): The source text to be used in the prompt.
-
-        Returns:
-            list[dict]: A list of dictionaries with the format {"student_question": str, "tutor_response": str}
-        """
-        return self._query_openai(source_text)
-    
+        turns = []
+        for interaction in dialogue:
+            student_turn = Turn(role="user", content=interaction["student_question"])
+            tutor_turn = Turn(role="assistant", content=interaction["tutor_response"])
+            turns.append(student_turn)
+            turns.append(tutor_turn)
+        return Dialogue(output_file=self.output_jsonl, id=dialogue_id, turns=turns)
+            
     def _query_openai(self, source_text: str) -> list[dict]:
         """
         This function will query the OpenAI API with the source text.
@@ -155,7 +90,7 @@ class DialogueGenerator:
         completion = completion.to_dict()
         dialogue = completion["choices"][0]["message"]["parsed"]["dialogue"]
         return dialogue
-    
+
     def _generate_prompt(self, source_text: str) -> str:
         """
         This function will generate the prompt for the OpenAI API.
@@ -168,20 +103,61 @@ class DialogueGenerator:
         """
         return self.prompt.replace("<SOURCE_TEXT>", source_text)
     
-    @staticmethod
-    def _load_jsons(jsons_path: str) -> list[str]:
+    def _define_source_texts(self, text_chunks: list[Chunk]) -> list[tuple[list[str], str]]:
         """
-        This function will load in memory all paths to the json files.
+        This function will define the source texts for the dialogues given the original text chunks.
 
         Args:
-            jsons_path (str): The path to the json files.
+            text_chunks (list[Chunk]): A list of Chunk instances.
 
         Returns:
-            list[str]: A list of paths to the json files.
+            list[tuple[list[str], str]]: A list of tuples where each tuple contains a list of chunk IDs and the merged text content.
         """
-        json_files = []
-        for root, _, files in os.walk(jsons_path):
-            for file in files:
-                if file.endswith(".json"):
-                    json_files.append(os.path.join(root, file))
-        return json_files
+        if not text_chunks:
+            return []
+
+        source_texts = []
+        start, end = 0, 0
+        length = 0
+
+        while end < len(text_chunks):
+            length += len(text_chunks[end].text)
+            
+            # Check if the accumulated length reaches around 5K characters
+            if length >= 5000:
+                # Include 1K-character overlaps from the previous and next chunks, if available
+                chunk_ids = [text_chunks[i].id for i in range(start, end + 1)]
+                merged_text = ""
+
+                if start > 0:
+                    merged_text += text_chunks[start - 1].text[-1000:]  # Left overlap
+                
+                for i in range(start, end + 1):
+                    merged_text += text_chunks[i].text
+
+                if end < len(text_chunks) - 1:
+                    merged_text += text_chunks[end + 1].text[:1000]  # Right overlap
+
+                source_texts.append((chunk_ids, merged_text))
+                
+                # Move to the next segment
+                start = end + 1
+                end = start
+                length = 0
+            else:
+                end += 1
+
+        # Handle any remaining chunks after the loop
+        if start < len(text_chunks):
+            chunk_ids = [text_chunks[i].id for i in range(start, len(text_chunks))]
+            merged_text = ""
+
+            if start > 0:
+                merged_text += text_chunks[start - 1].text[-1000:]
+
+            for i in range(start, len(text_chunks)):
+                merged_text += text_chunks[i].text
+
+            source_texts.append((chunk_ids, merged_text))
+
+        return source_texts
