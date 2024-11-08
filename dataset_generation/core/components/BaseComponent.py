@@ -10,6 +10,9 @@ class BaseComponent:
     def from_json_str(self, json_str):
         raise NotImplementedError
     
+    def __str__(self):
+        raise NotImplementedError
+    
     def save(self):
         """
         Appending the json string to the output file (JSONL format)
