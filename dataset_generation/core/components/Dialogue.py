@@ -13,7 +13,7 @@ class Dialogue(BaseComponent):
         if json_str:
             self.from_json_str(json_str)
         else:
-            if id is None or output_file is None:
+            if id is None or output_file is None or turns is None:
                 raise ValueError("You either load the file from json_str or provide doc_id, chunk_ids, output_file")
 
             super().__init__(
@@ -23,16 +23,11 @@ class Dialogue(BaseComponent):
             )
     
     @staticmethod
-    def get_id(doc_id, chunk_ids):
-        return f"{doc_id}_[{'_'.join(chunk_ids)}]"
+    def get_id(chunk_ids):
+        doc_id = chunk_ids[0].split("_ch")[0]
+        chunk_ids = [chunk_id.split("_ch")[1] for chunk_id in chunk_ids]
+        return f"{doc_id}_ch[{'_'.join(chunk_ids)}]"
     
-    @staticmethod
-    def extract_ids(id_str):
-        doc_id = id_str.split("_ch")[0]
-        chunk_ids = id_str.split("_ch")[1].split("_")
-        return doc_id, chunk_ids
-
-
     def to_json_str(self):
         return json.dumps({
             "id": self.id,
@@ -42,7 +37,6 @@ class Dialogue(BaseComponent):
     def from_json_str(self, json_str: str):
         data = json.loads(json_str)
         self.id = data["id"]
-        self.doc_id, self.chunk_ids = Dialogue.extract_ids(self.id)
         self.turns = [Turn(json_str=turn) for turn in data["turns"]]
     
     def __str__(self):
