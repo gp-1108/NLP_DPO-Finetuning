@@ -25,7 +25,7 @@ class Document(BaseComponent):
     
     @staticmethod
     def get_id(int_id):
-        return f"dc_{int_id}"
+        return f"dc{int_id}"
     
     def to_json_str(self):
         return json.dumps({

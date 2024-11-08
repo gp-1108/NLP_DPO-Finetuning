@@ -40,3 +40,9 @@ class DPOTurn(BaseSubComponent):
         self.positive_sample = data["positive_sample"]
         self.negative_sample = data["negative_sample"]
         self.rule_used = data["rule_used"]
+    
+    def __str__(self):
+        string = f"Role: {self.role}\n"
+        string += f"Rule Used: {self.rule_used}"
+        string += " (Positive Sample)" if self.positive_sample else " (Negative Sample)"
+        return string

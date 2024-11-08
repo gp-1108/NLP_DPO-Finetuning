@@ -4,26 +4,29 @@ import json
 
 class DPODialogue(BaseComponent):
     def __init__(self,
-                 dialogue_id: str=None,
-                 dpo_id: int=None,
+                 id: str=None,
                  turns: list[DPOTurn]=None,
                  json_str: str = None
                 ):
         if json_str:
             self.from_json_str(json_str)
         else:
-            if dialogue_id is None or \
-               dpo_id is None or \
+            if id is None or \
                turns is None:
                 raise Exception("DPODialogue: Missing required parameters")
             super().__init__(
-                dialogue_id=dialogue_id,
-                dpo_id=dpo_id,
+                id = id,
                 turns=turns
             )
 
-    def get_id(self):
-        return f"{self.dialogue_id}_dpo{self.dpo_id}"
+    @staticmethod
+    def get_id(dialogue_id: str, dpo_int_id: int):
+        return f"{dialogue_id}_dpo{dpo_int_id}"
+    
+    @staticmethod
+    def extract_ids(dialogue_id: str):
+        doc_id, id = dialogue_id.split("_dpo")
+        return doc_id, int(id)
     
     def to_json_str(self):
         return json.dumps({
@@ -35,3 +38,6 @@ class DPODialogue(BaseComponent):
         data = json.loads(json_str)
         self.dialogue_id, self.dpo_id = DPODialogue.extract_ids(data["id"])
         self.turns = [DPOTurn(json_str=json.dumps(turn)) for turn in data["turns"]]
+    
+    def __str__(self):
+        string = f"Dialogue ID: {self.dialogue_id}\n"

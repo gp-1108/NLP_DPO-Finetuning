@@ -21,12 +21,12 @@ class Chunk(BaseSubComponent):
     
     @staticmethod
     def extract_ids(chunk_id: str):
-        doc_id, id = chunk_id.split("_ch_")
+        doc_id, id = chunk_id.split("_ch")
         return doc_id, int(id)
     
     @staticmethod
     def get_id(doc_id, chunk_int_id):
-        return f"{doc_id}_ch_{chunk_int_id}"
+        return f"{doc_id}_ch{chunk_int_id}"
     
     def to_json_str(self):
         return json.dumps({
