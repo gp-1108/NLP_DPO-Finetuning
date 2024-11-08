@@ -28,3 +28,7 @@ class Turn(BaseSubComponent):
         data = json.loads(json_str)
         self.role = data["role"]
         self.content = data["content"]
+    
+    def __str__(self):
+        string = f"Role: {self.role}\n"
+        string += f"Content: {self.content[:10]}...\n"

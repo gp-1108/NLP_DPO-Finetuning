@@ -21,6 +21,7 @@ class Dialogue(BaseComponent):
                 chunk_ids=chunk_ids,
                 turns=turns
             )
+            self.id = self.get_id()
 
     def get_id(self):
         doc_id = self.chunk_ids[0].split('_')[0]
@@ -46,3 +47,8 @@ class Dialogue(BaseComponent):
         self.id = data["id"]
         self.chunk_ids = Dialogue.extract_ids(self.id)
         self.turns = [Turn(json_str=turn) for turn in data["turns"]]
+    
+    def __str__(self):
+       string = f"Dialogue: {self.id}\n"
+       string += f"Turns: {len(self.turns)}\n"
+       return string
