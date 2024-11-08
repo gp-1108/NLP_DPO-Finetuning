@@ -4,7 +4,6 @@ import json
 class Chunk(BaseSubComponent):
     def __init__(self,
                  id: str=None,
-                 doc_id: str=None,
                  text: str=None,
                  json_str: str = None
                 ):
@@ -12,13 +11,11 @@ class Chunk(BaseSubComponent):
             self.from_json_str(json_str)
         else:
             if  id is None or \
-                doc_id is None or \
                 text is None:
-                print(not id, not doc_id, not text)
+                print(not id, not text)
                 raise Exception("Chunk: Missing required parameters")
             super().__init__(
                 id=id,
-                doc_id=doc_id,
                 text=text
             )
     
@@ -40,5 +37,7 @@ class Chunk(BaseSubComponent):
     def from_json_str(self, json_str: str):
         data = json.loads(json_str)
         self.id = data["id"]
-        self.doc_id, self.id = Chunk.extract_ids(self.id)
         self.text = data["text"]
+    
+    def __str__(self):
+        return f"Chunk ID: {self.id}\nText: {self.text}\n"

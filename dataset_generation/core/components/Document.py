@@ -29,7 +29,7 @@ class Document(BaseComponent):
     
     def to_json_str(self):
         return json.dumps({
-            "id": Document.get_id(self.id),
+            "id": self.id,
             "file_name": self.file_name,
             "chunks": [chunk.to_json_str() for chunk in self.chunks]
         })
@@ -39,3 +39,9 @@ class Document(BaseComponent):
         self.id = data["id"] 
         self.file_name = data["file_name"]
         self.chunks = [Chunk(json_str=chunk) for chunk in data["chunks"]]
+    
+    def __str__(self):
+        string = f"Document ID: {self.id}\n"
+        string += f"File Name: {self.file_name}\n"
+        string += f"Chunks: {[chunk.id for chunk in self.chunks]}\n"
+        return string
