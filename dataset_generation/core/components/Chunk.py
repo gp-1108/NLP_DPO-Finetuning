@@ -40,4 +40,6 @@ class Chunk(BaseSubComponent):
         self.text = data["text"]
     
     def __str__(self):
-        return f"Chunk ID: {self.id}\nText: {self.text}\n"
+        string = f"Chunk ID: {self.id}\n"
+        string += f"Text: {self.text[:10]}...\n"
+        return string
