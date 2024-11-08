@@ -8,3 +8,6 @@ class BaseSubComponent:
     
     def from_json_str(self, json_str: str):
         raise NotImplementedError
+    
+    def __str__(self):
+        raise NotImplementedError
