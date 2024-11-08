@@ -67,14 +67,13 @@ class ChunkExtractor():
             print(f"Text for file {pdf_file} is probably corrupted or not useful.")
             return None
 
-        doc_int_id = self._generate_id()
         document_chunks = [
-            Chunk(text=chunk, doc_id=Document.get_id(doc_int_id), id=i) for i,chunk in enumerate(chunks)
+            Chunk(text=chunk, id=Chunk.get_id(doc_id, i)) for i,chunk in enumerate(chunks)
         ]
         document = Document(
             output_file=self.output_jsonl,
             file_name=os.path.basename(pdf_file),
-            id=doc_int_id,
+            id=doc_id,
             chunks=document_chunks
         )
         return document
