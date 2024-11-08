@@ -1,3 +1,4 @@
+import os
 from .BaseLoader import BaseLoader
 from ..components.Dialogue import Dialogue
 
@@ -6,6 +7,12 @@ class DialogueLoader(BaseLoader):
         super().__init__(jsonl_path)
     
     def load_data(self):
+        if not os.path.exists(self.jsonl_path):
+            return []
         with open(self.jsonl_path, 'r') as file:
             data = [Dialogue(json_str=line) for line in file if line.strip()]
         return data
+    
+    def load_index(self):
+        index = {dialogue.id for dialogue in self.data}
+        return index
