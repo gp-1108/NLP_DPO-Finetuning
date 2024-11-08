@@ -5,8 +5,9 @@ import os
 import tqdm
 from ..components import Document
 from ..components import Chunk
+from ..loaders import DocumentLoader
 
-class ChunkExtractor():
+class ChunkExtractor:
     EMAIL_TOKEN = "<EMAIL_TOKEN>"
     URL_TOKEN = "<URL_TOKEN>"
     SMALL_WORDS_TOKEN = "<SMALL_WORDS_TOKEN>"
