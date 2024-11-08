@@ -21,6 +21,7 @@ class ChunkExtractor():
                  chunk_max_length: int = 7000):
         self.pdf_files = ChunkExtractor._load_pdf_files(pdfs_path)
         self.output_jsonl = output_jsonl
+        self.already_processed = DocumentLoader(output_jsonl)
         self.CHUNK_MAX_LENGTH = chunk_max_length
         self.CHUNK_MIN_LENGTH = chunk_min_length
         self.id_counter = 0
@@ -55,6 +56,12 @@ class ChunkExtractor():
         """
         Processes the extracted text and creates a Document instance.
         """
+        doc_int_id = self._generate_id()
+        doc_id = Document.get_id(doc_int_id)
+        if doc_id in self.already_processed:
+            print(f"Document with ID {doc_id} already processed.")
+            return None
+
         chunks = self._pre_process(text)
         if not chunks or sum(len(chunk.split()) for chunk in chunks) < 200:
             print(f"Text for file {pdf_file} is probably corrupted or not useful.")
