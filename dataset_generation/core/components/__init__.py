@@ -4,6 +4,7 @@ from .Dialogue import Dialogue
 from .Turn import Turn
 from .DPODialogue import DPODialogue
 from .DPOTurn import DPOTurn
+from .PedagogicalRules import PedagogicalRules
 
 __all__ = [
     "Chunk",
@@ -11,5 +12,6 @@ __all__ = [
     "Dialogue",
     "Turn",
     "DPODialogue",
-    "DPOTurn"
+    "DPOTurn",
+    "PedagogicalRules"
 ]
