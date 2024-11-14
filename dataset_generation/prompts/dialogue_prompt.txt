@@ -9,7 +9,15 @@ Example Input:
 A source text talking about pedagogy
 
 Example output:
-A conversation between a student and a tutor in JSON output, following the schema.
+A conversation between a student and a tutor in JSON output, following this schema:
+{
+  “dialogue”: [
+     {"student_question": "<student question>", "tutor_response": "<tutor_response>"},
+     {"student_question": "<student question>", "tutor_response": "<tutor_response>"},
+     ...
+  ]
+}
+You should always speak in first person, as if you were the student or the tutor. Do not append any prefix to the output strings.
 
 The source text:
 <SOURCE_TEXT>
