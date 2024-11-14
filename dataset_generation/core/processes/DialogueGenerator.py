@@ -62,10 +62,8 @@ class DialogueGenerator:
         """
         turns = []
         for interaction in dialogue:
-            student_turn = Turn(role="user", content=interaction["student_question"])
-            tutor_turn = Turn(role="assistant", content=interaction["tutor_response"])
-            turns.append(student_turn)
-            turns.append(tutor_turn)
+            turn = Turn(user=interaction["student_question"], assistant=interaction["tutor_response"])
+            turns.append(turn)
         return Dialogue(output_file=self.output_jsonl, id=dialogue_id, turns=turns)
             
     def _query_openai(self, source_text: str) -> list[dict]:
