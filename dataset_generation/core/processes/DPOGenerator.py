@@ -1,153 +1,191 @@
-from pydantic import BaseModel
+from ..components import PedagogicalRules, DPODialogue, DPOTurn, Turn, Dialogue
+from ..loaders import DPODialogueLoader, DialogueLoader
 from openai import OpenAI
+from pydantic import BaseModel
 import os
-import json
+import random
 from tqdm import tqdm
 
-class ResponseSchema(BaseModel):
-    adapted_student_response: str
-    good_tutor_response: str
-    bad_tutor_response: str
+class UseRuleSchema(BaseModel):
+    use_rule: bool
+
+class GoodAnswerSchema(BaseModel):
+    adapted_response: str
+    tutor_response: str
+
+class BadAnswerSchema(BaseModel):
+    not_following_tutor: str
 
 class DPOGenerator:
-    def __init__(
-            self,
-            jsons_path: str,
-            prompt_path: str,
-            output_dir: str,
-            model: str = "gpt-4o"
-        ):
+    K = 3
+
+    def __init__(self,
+                 jsonl_file: str,
+                 output_jsonl: str,
+                 rules_txt_path: str,
+                 good_answer_prompt_path: str,
+                 bad_answer_prompt_path: str,
+                 apply_rule_prompt_path: str,
+                 model: str = "gpt-4o"):
+        self.model = model
         self.client = OpenAI(
             api_key=os.getenv("OPENAI_API_KEY")
         )
-        self.model = model
-        self.json_files = DPOGenerator._load_jsons(jsons_path)
-        self.output_dir = output_dir
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        self.prompt = open(prompt_path, "r").read()
+        self.dialogues = DialogueLoader(jsonl_file)
+        self.output_jsonl = output_jsonl
+        self.already_processed = DPODialogueLoader(output_jsonl)
+        self.rules = PedagogicalRules(rules_txt_path)
+        self.good_answer_prompt = open(good_answer_prompt_path, "r").read()
+        self.bad_answer_prompt = open(bad_answer_prompt_path, "r").read()
+        self.apply_rule_prompt = open(apply_rule_prompt_path, "r").read()
     
-    def generate_dialogue_trees(self):
-        """
-        Generates dialogue trees for each JSON file in the json_files list.
+    def generate_all(self):
+        for dialogue in tqdm(self.dialogues):
+            print(f"Generating dialogue with ID {dialogue.id}")
+            self.generate_single_dialogue(dialogue)
+            print(f"Dialogue with ID {dialogue.id} generated.")
+    
+    def generate_single_dialogue(self, dialogue: Dialogue):
+        raw_turns = dialogue.turns
+        self.dfs_generation(dialogue.id, [], raw_turns, 0)
+    
+    def dfs_generation(self,
+                       dialogue_id: str,
+                       dpo_turns: list[DPOTurn],
+                       raw_turns: list[Turn],
+                       current: int) -> None:
+        if current == len(raw_turns):
+            print(f"Reached the end of the dialogue with ID {dialogue_id}")
+            return
+        
+        # We need to know which rules should be applied or not
+        upcoming_turn = raw_turns[current]
+        applicable_rules = []
+        for rule_idx, rule in self.rules:
+            if self._does_rule_get_applied(rule_idx, dpo_turns, upcoming_turn):
+                applicable_rules.append(rule_idx)
 
-        This method iterates over all JSON files, loads the dialogue data from each file,
-        generates a dialogue tree from the loaded dialogue, and then saves the generated
-        dialogue tree back to the corresponding JSON file.
-
-        Returns:
-            None
-        """
-        for json_file in tqdm(self.json_files, desc="Generating dialogue trees"):
-            dialogues = self._load_dialogues(json_file)
-            dpo_dialogues = []
-            for dialogue in dialogues:
-                dialogue_tree = self.generate_dialogue_tree(dialogue)
-                dpo_dialogues.append(dialogue_tree)
-            self._save_dialogues_tree(dpo_dialogues, json_file)
-
-    def generate_dialogue_tree(self, dialogue: list[dict]) -> list[str]:
-        """
-        This function will generate a dialogue tree based on the given dialogue.
-
-        Args:
-            dialogue (list[dict]): A list of student-tutor interactions. Each interaction is a dictionary
-            with the keys "student_question" and "tutor_response".
-
-        Returns:
-            list[dict]: A list of objects with the format {"student": str, "good_tutor": str, "bad_tutor": str}
-        """
-        generated_tree = []
-        last_tut_response = "// the conversation has just started, no tutor’s response"
-        for interaction in dialogue:
-            student_question = interaction["student_question"]
-            tutor_response = interaction["tutor_response"]
-            adapted_student_response, good_tutor_response, bad_tutor_response = self._query_openai(
-                last_tut_response, student_question, tutor_response
+        # Now for each rule we will generate the dpo turn
+        local_dpo_turns = []
+        for rule_idx in applicable_rules:
+            possible_doc_id = DPODialogue.get_id(dialogue_id, [turn.rule_used for turn in dpo_turns]+[rule_idx])
+            if possible_doc_id in self.already_processed:
+                continue
+            # First the adapted student question and tutor response
+            adapted_student, adapted_tutor = self._get_good_answer_and_question(
+                dpo_turns[-1] if dpo_turns else None,
+                rule_idx,
+                upcoming_turn,
             )
-            generated_tree.append({
-                "adapted_student_response": adapted_student_response,
-                "good_tutor_response": good_tutor_response,
-                "bad_tutor_response": bad_tutor_response
-            })
-            last_tut_response = good_tutor_response
-        return generated_tree
-    
-    def _load_dialogues(self, json_file: str) -> list[dict]:
-        """
-        This function will load all the dialogues from the given json file.
+            # Now the negative answer
+            negative_answer = self._get_bad_answer(rule_idx, adapted_tutor)
 
-        Args:
-            json_file (str): The path to the json file.
+            # And now let's generate the dpo turn
+            dpo_turn = DPOTurn(
+                student_question=adapted_student,
+                positive_answer=adapted_tutor,
+                negative_answer=negative_answer,
+                rule_used=rule_idx
+            )
+            local_dpo_turns.append(dpo_turn)
+        
+        # Let's save everything generated so far
+        for turn in local_dpo_turns:
+            final_list = dpo_turns + [turn]
+            new_dialogue_id = DPODialogue.get_id(dialogue_id, [turn.rule_used for turn in final_list])
+            dialogue = DPODialogue(
+                id=new_dialogue_id,
+                last_turn=turn,
+                output_jsonl=self.output_jsonl
+            )
+            dialogue.save()
 
-        Returns:
-            list[list[dict]]: A list of list of student-tutor interactions. Each interaction is a dictionary
-            with the keys "student_question" and "tutor_response".
-        """
-        with open(json_file, "r") as f:
-            dialogue = json.load(f)
-        return dialogue
-    
-    def _save_dialogues_tree(self, dialogues_tree: list[list[str]], json_file: str):
-        """
-        This function will save the generated dialogue tree to a JSON file.
-        The format will be the same as the input obj file.
+        # Out of all the dpo turns we will select k at random to continue the generation
+        selected_dpo_turns = random.sample(local_dpo_turns, min(self.K, len(local_dpo_turns)))
+        # These turns will be used to continue the generation
+        for turn in selected_dpo_turns:
+            self.dfs_generation(dialogue_id, dpo_turns + [turn], raw_turns, current+1)
 
-        Args:
-            dialogue_tree (list[list[str]]): The generated dialogue trees
-            json_file (str): The path to the json file.
-        """
-        output_file = os.path.join(self.output_dir, os.path.basename(json_file))
-        with open(output_file, "w") as f:
-            json.dump(dialogues_tree, f, indent=2)
+    def _generate_prompt_apply_rule(self,
+                                    rule_index: int,
+                                    dialogue_so_far: list[DPOTurn],
+                                    upcoming_turn: Turn) -> str:
+        prompt = self.apply_rule_prompt.replace("<PEDAGOGICAL RULE>", self.rules[rule_index])
+        con_so_far = ""
+        for turn in dialogue_so_far:
+            con_so_far += f"Student: {turn.student_question}\n"
+            con_so_far += f"Tutor: {turn.positive_answer}\n"
+        # If the conversation is empty we will replace the placeholder with an empty string
+        if con_so_far == "":
+            con_so_far = "// the conversation has just started, no conversation so far\n"
+        prompt = prompt.replace("<CONVERSATION SO FAR>", con_so_far)
+
+        prompt = prompt.replace("<STUDENT QUESTION>", upcoming_turn.user)
+        prompt = prompt.replace("<TUTOR ANSWER>", upcoming_turn.assistant)
+
+        return prompt
     
-    def _query_openai(self, last_tut_response: str, student_question: str, tutor_response: str) -> str:
-        prompt = self._generate_prompt(last_tut_response, student_question, tutor_response)
+    def _generate_prompt_good_answer_and_question(self,
+                                                  last_dpo_turn: DPOTurn,
+                                                  rule_to_apply: int,
+                                                  upcoming_turn: Turn) -> str:
+        prompt = self.good_answer_prompt.replace("<PEDAGOGICAL RULE>", self.rules[rule_to_apply])
+        if last_dpo_turn is None:
+            last_tut_res = "// the conversation has just started, no tutor’s response\n"
+        else:
+            last_tut_res = last_dpo_turn.positive_answer
+        prompt = prompt.replace("<LAST TUTOR RESPONSE>", last_tut_res)
+        prompt = prompt.replace("<STUDENT QUESTION>", upcoming_turn.user)
+        prompt = prompt.replace("<TUTOR ANSWER>", upcoming_turn.assistant)
+        return prompt
+    
+    def _generate_prompt_bad_answer(self,
+                                    rule_to_negate: int,
+                                    good_answer: str) -> str:
+        prompt = self.bad_answer_prompt.replace("<PEDAGOGICAL RULE>", self.rules[rule_to_negate])
+        prompt = prompt.replace("<GOOD TUTOR RESPONSE>", good_answer)
+        return prompt
+    
+    def _get_bad_answer(self,
+                        rule_to_negate: int,
+                        good_answer: str) -> str:
+        prompt = self._generate_prompt_bad_answer(rule_to_negate, good_answer)
+        response = self._query_openai(prompt, BadAnswerSchema)
+        return response["not_following_tutor"]
+
+    
+    def _get_good_answer_and_question(self,
+                                      last_dpo_turn: DPOTurn,
+                                      rule_to_apply: int,
+                                      upcoming_turn) -> str:
+        prompt = self._generate_prompt_good_answer_and_question(last_dpo_turn, rule_to_apply, upcoming_turn)
+        response = self._query_openai(prompt, GoodAnswerSchema)
+        return response["adapted_response"], response["tutor_response"]
+    
+    def _does_rule_get_applied(self,
+                               rule_to_apply: int,
+                               dialogue_so_far: list[DPOTurn],
+                               upcoming_turn) -> bool:
+        # If the rule has been applied in the past 3 turns, return False
+        if rule_to_apply in [turn.rule_used for turn in dialogue_so_far[-3:]]:
+            return False
+        
+        # Else we will ask OpenAI if the rule should be applied
+        prompt = self._generate_prompt_apply_rule(rule_to_apply, dialogue_so_far, upcoming_turn)
+        response = self._query_openai(prompt, UseRuleSchema)
+        return response["use_rule"]
+
+
+    
+    def _query_openai(self, prompt: str, schema: BaseModel) -> str:
         completion = self.client.beta.chat.completions.parse(
             model=self.model,
             messages=[
                 {"role": "user", "content": prompt}
             ],
-            response_format=ResponseSchema
+            response_format=schema
         )
+        # Parsing back to python object
         completion = completion.to_dict()
-        answer = completion["choices"][0]["message"]["parsed"]
-        adapted_student_response = answer["adapted_student_response"]
-        good_tutor_response = answer["good_tutor_response"]
-        bad_tutor_response = answer["bad_tutor_response"]
-        return adapted_student_response, good_tutor_response, bad_tutor_response
-    
-    def _generate_prompt(self, last_tut_response: str, student_question: str, tutor_response: str) -> str:
-        """
-        This function will generate the prompt for the OpenAI API.
-
-        Args:
-            last_tut_response (str): The last tutor response.
-            student_question (str): The student question.
-            tutor_response (str): The tutor response.
-
-        Returns:
-            str: The generated prompt.
-        """
-        prompt = self.prompt.replace("<LAST_TUTOR_RESPONSE>", last_tut_response)
-        prompt = prompt.replace("<STUDENT_QUESTION>", student_question)
-        prompt = prompt.replace("<TUTOR_RESPONSE>", tutor_response)
-        return prompt
-    
-    @staticmethod
-    def _load_jsons(jsons_path: str) -> list[str]:
-        """
-        This function will load all the json files paths in the given directory.
-
-        Args:
-            jsons_path (str): The path to the directory containing the json files.
-
-        Returns:
-            list[str]: A list of paths to the json files.
-        """
-        files = []
-        for root, _, filenames in os.walk(jsons_path):
-            for filename in filenames:
-                if filename.endswith(".json"):
-                    files.append(os.path.join(root, filename))
-        return files
+        response = completion["choices"][0]["message"]["parsed"]
+        return response
