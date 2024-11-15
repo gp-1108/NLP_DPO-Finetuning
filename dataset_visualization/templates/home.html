@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Page</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home_styles.css') }}">
+    <script src="{{ url_for('static', filename='js/home_scripts.js') }}" defer></script>
+</head>
+<body>
+    <div class="container">
+        <div class="list-container">
+            <h2>Documents</h2>
+            <div class="list" id="documents-list">
+                {% for item in documents %}
+                <div class="list-item" data-type="document">
+                    <a href="/document/{{ item }}" class="item-link">{{ item }}</a>
+                    <button class="filter-btn" data-id="{{ item }}" data-type="document">&#9654;</button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="list-container">
+            <h2>Dialogues</h2>
+            <div class="list" id="dialogues-list">
+                {% for item in dialogues %}
+                <div class="list-item" data-type="dialogue">
+                    <a href="/dialogue/{{ item }}" class="item-link">{{ item }}</a>
+                    <button class="filter-btn" data-id="{{ item }}" data-type="dialogue">&#9654;</button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="list-container">
+            <h2>DPO Dialogues</h2>
+            <div class="list" id="dpo-dialogues-list">
+                {% for item in dpo_dialogues %}
+                <div class="list-item" data-type="dpo-dialogue">
+                    <a href="/dpo_dialogue/{{ item }}" class="item-link">{{ item }}</a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

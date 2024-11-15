@@ -1,0 +1,88 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f9;
+}
+
+.container {
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-start;
+    padding: 20px;
+    gap: 20px;
+}
+
+.list-container {
+    width: 30%;
+    text-align: center;
+}
+
+h2 {
+    background-color: #007bff;
+    color: white;
+    padding: 10px;
+    margin: 0;
+    border-radius: 5px;
+}
+
+.list {
+    height: 400px;
+    overflow-y: scroll;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 10px;
+    margin-top: 10px;
+}
+
+.list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    font-size: 14px;
+    text-align: left;
+}
+
+.list-item:last-child {
+    border-bottom: none;
+}
+
+.list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.list::-webkit-scrollbar-thumb {
+    background-color: #007bff;
+    border-radius: 5px;
+}
+
+.list::-webkit-scrollbar-track {
+    background-color: #f1f1f1;
+}
+
+.item-link {
+    color: inherit; /* Use the same text color as the parent */
+    text-decoration: none; /* Remove underline */
+    display: block; /* Make the link fill the item's area */
+}
+
+.item-link:hover {
+    text-decoration: underline; /* Add underline on hover */
+    color: #007bff; /* Change color on hover */
+}
+
+.filter-btn {
+    background: none;
+    border: none;
+    color: #007bff;
+    font-size: 16px;
+    cursor: pointer;
+    margin-left: 10px;
+}
+
+.filter-btn:hover {
+    color: #0056b3;
+}
