@@ -25,6 +25,16 @@ class DPODialogue(BaseComponent):
     @staticmethod
     def get_id(dialogue_id: str, rules_idx_used: list[int]):
         return f"{dialogue_id}_dpo[{'_'.join([str(idx) for idx in rules_idx_used])}]"
+
+    @staticmethod
+    def get_previous_dpo_id(dialogue_id: str):
+        rules_idx_used = dialogue_id[dialogue_id.rindex("[")+1:dialogue_id.rindex("]")]
+        rules_idx_used = rules_idx_used.split("_")
+        rules_idx_used = [int(idx) for idx in rules_idx_used]
+        rules_idx_used = rules_idx_used[:-1]
+        if len(rules_idx_used) == 0:
+            return None
+        return DPODialogue.get_id(dialogue_id[:dialogue_id.index("_dpo")], rules_idx_used)
     
     def to_json_str(self):
         return json.dumps({
