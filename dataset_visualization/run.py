@@ -26,5 +26,16 @@ def document_page(doc_id):
                            document=document,
                            dialogues=dialogues)
 
+@app.route('/chunks/<chunk_id>')
+def chunk_page(chunk_id):
+    # Getting the document id from the chunk id
+    document_id = chunk_id.split("_")[0]
+    document = document_loader.get_document_by_id(document_id)
+    chunk = document.get_chunk_by_id(chunk_id)
+    if not chunk:
+        return "Chunk not found", 404
+
+    return render_template('chunk.html', chunk=chunk, document=document)
+
 if __name__ == "__main__":
     app.run(debug=True)

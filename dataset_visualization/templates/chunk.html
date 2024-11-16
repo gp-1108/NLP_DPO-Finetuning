@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chunk {{ chunk.id }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/document_styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Chunk Details</h1>
+        </header>
+        <div class="chunk-details">
+            <p><strong>ID:</strong> {{ chunk.id }}</p>
+            <p><strong>Document:</strong> <a href="/document/{{ document.id }}">{{ document.id }}</a></p>
+            <div class="chunk-text">
+                <h2>Text</h2>
+                <pre>{{ chunk.text }}</pre>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
