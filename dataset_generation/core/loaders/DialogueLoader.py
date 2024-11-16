@@ -13,6 +13,9 @@ class DialogueLoader(BaseLoader):
             data = [Dialogue(json_str=line) for line in file if line.strip()]
         return data
     
+    def get_dialogues_by_document_id(self, document_id):
+        return [dialogue for dialogue in self.data if document_id in dialogue.id]
+    
     def load_index(self):
         index = {dialogue.id for dialogue in self.data}
         return index

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document {{ document.id }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/document_styles.css') }}">
+    <script src="{{ url_for('static', filename='js/document_scripts.js') }}" defer></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Document Details</h1>
+        </header>
+        <div class="document-details">
+            <p><strong>ID:</strong> {{ document.id }}</p>
+            <p><strong>File Name:</strong> {{ document.file_name }}</p>
+        </div>
+        <div class="list-container">
+            <div class="list-header" data-list="chunks-list">
+                <h2>Chunks</h2>
+                <button class="toggle-btn" data-list="chunks-list">Expand</button>
+            </div>
+            <ul class="list" id="chunks-list">
+                {% for chunk in document.chunks %}
+                <li><a href="/chunks/{{ chunk.id }}">{{ chunk.id }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="list-container">
+            <div class="list-header" data-list="dialogues-list">
+                <h2>Raw Dialogues</h2>
+                <button class="toggle-btn" data-list="dialogues-list">Expand</button>
+            </div>
+            <ul class="list" id="dialogues-list">
+                {% for dialogue in dialogues %}
+                <li><a href="/dialogue/{{ dialogue }}">{{ dialogue.id }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
