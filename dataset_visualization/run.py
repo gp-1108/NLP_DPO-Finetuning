@@ -37,5 +37,24 @@ def chunk_page(chunk_id):
 
     return render_template('chunk.html', chunk=chunk, document=document)
 
+@app.route('/dialogue/<dialogue_id>')
+def dialogue_page(dialogue_id):
+    dialogue = dialogue_loader.get_dialogue_by_id(dialogue_id)
+
+    if not dialogue:
+        return "Dialogue not found", 404
+
+    # Extract document ID and chunk IDs
+    doc_id = dialogue.id.split("_ch")[0]
+    chunk_ids = [f"{doc_id}_ch{chunk}" for chunk in dialogue.id.split("[")[1].strip("]").split("_")]
+
+    dpo_dialogues = dpo_dialogue_loader.get_dpo_dialogues_by_dialogue_id(dialogue_id)
+
+    return render_template('dialogue.html',
+                           dialogue=dialogue,
+                           doc_id=doc_id,
+                           chunk_ids=chunk_ids,
+                           dpo_dialogues=dpo_dialogues)
+
 if __name__ == "__main__":
     app.run(debug=True)
