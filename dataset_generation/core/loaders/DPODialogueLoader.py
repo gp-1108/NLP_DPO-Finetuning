@@ -11,6 +11,7 @@ class DPODialogueLoader(BaseLoader):
             return []
         with open(self.jsonl_path, 'r') as file:
             data = [DPODialogue(json_str=line) for line in file if line.strip()]
+        self.id2idx = {dialogue.id: idx for idx, dialogue in enumerate(data)}
         return data
     
     def load_index(self):
@@ -39,3 +40,23 @@ class DPODialogueLoader(BaseLoader):
         # Now sort by length and then by the id itself
         lst.sort(key=lambda x: (len(x), x))
         return lst
+    
+    def get_dpo_turns_by_dialogue_id(self, dpo_dialogue_id):
+        dpo_dialogue = self.get_dpo_dialogue_by_id(dpo_dialogue_id)
+        turns = [dpo_dialogue.last_turn]
+        prev = DPODialogue.get_previous_dpo_id(dpo_dialogue_id)
+        while prev:
+            dpo_dialogue = self.get_dpo_dialogue_by_id(prev)
+            turns.append(dpo_dialogue.last_turn)
+            prev = DPODialogue.get_previous_dpo_id(prev)
+        return turns[::-1]
+    
+    def get_dpo_dialogue_by_id(self, dpo_dialogue_id):
+        return self.data[self.id2idx[dpo_dialogue_id]]
+
+    
+    def get_dpo_dialogues_by_dialogue_id(self, dialogue_id):
+        unique_dpo_ids = self.get_unique_dpo_ids()
+        dpo_dialogues = [dpo_id for dpo_id in unique_dpo_ids if dpo_id.startswith(dialogue_id)]
+        dpo_dialogues = [self.data[self.id2idx[dpo_id]] for dpo_id in dpo_dialogues]
+        return dpo_dialogues

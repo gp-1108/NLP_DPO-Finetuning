@@ -27,6 +27,12 @@ class Document(BaseComponent):
     def get_id(int_id):
         return f"dc{int_id}"
     
+    def get_chunk_by_id(self, chunk_id):
+        for chunk in self.chunks:
+            if chunk.id == chunk_id:
+                return chunk
+        return None
+    
     def to_json_str(self):
         return json.dumps({
             "id": self.id,

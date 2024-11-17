@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DPO Dialogue {{ dialogue.id }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dpo_dialogue_styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>DPO Dialogue Details</h1>
+        </header>
+        <div class="dialogue-details">
+            <p><strong>ID:</strong> {{ dialogue.id }}</p>
+            <p><strong>Document:</strong> <a href="/document/{{ doc_id }}">{{ doc_id }}</a></p>
+        </div>
+        <div class="list-container">
+            <h2>Chunks</h2>
+            <ul>
+                {% for chunk_id in chunk_ids %}
+                <li><a href="/chunk/{{ chunk_id }}">{{ chunk_id }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="list-container">
+            <h2>Original Dialogue</h2>
+            <p><a href="/dialogue/{{ original_diag_id }}">{{ original_diag_id }}</a></p>
+        </div>
+        <div class="chat-window">
+            <h2>Chat</h2>
+            <div class="chat">
+                {% for turn in turns %}
+                <div class="chat-turn">
+                    <div class="chat-bubble user">
+                        <p><strong>Student:</strong> {{ turn.student_question }}</p>
+                    </div>
+                    <div class="chat-answers">
+                        <div class="chat-bubble positive-answer">
+                            <p><strong>Positive:</strong> {{ turn.positive_answer }}</p>
+                        </div>
+                        <div class="chat-bubble negative-answer">
+                            <p><strong>Negative:</strong> {{ turn.negative_answer }}</p>
+                        </div>
+                    </div>
+                    <p class="rule-applied">Rule Applied: {{ rules[turn.rule_used] }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,5 +1,6 @@
 from .DPOTurn import DPOTurn
 from .BaseComponent import BaseComponent
+from .Chunk import Chunk
 import json
 
 class DPODialogue(BaseComponent):
@@ -35,6 +36,16 @@ class DPODialogue(BaseComponent):
         if len(rules_idx_used) == 0:
             return None
         return DPODialogue.get_id(dialogue_id[:dialogue_id.index("_dpo")], rules_idx_used)
+    
+    def get_chunks_ids(self):
+        chunks_int_ids = self.id[self.id.index("[")+1:self.id.index("]")]
+        chunks_int_ids = chunks_int_ids.split("_")
+        chunks_int_ids = [int(chunk) for chunk in chunks_int_ids]
+        doc_id = self.id.split("_ch")[0]
+        return [Chunk.get_id(doc_id, chunk) for chunk in chunks_int_ids]
+    
+    def get_doc_id(self):
+        return self.id.split("_ch")[0]
     
     def to_json_str(self):
         return json.dumps({

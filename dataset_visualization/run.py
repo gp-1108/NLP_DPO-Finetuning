@@ -1,11 +1,13 @@
 from flask import Flask, render_template
 from core.loaders import DocumentLoader, DialogueLoader, DPODialogueLoader
+from core.components import PedagogicalRules
 
 app = Flask(__name__)
 base_path = "/home/gp1108/Code/Thesis/dataset_generation/data"
 document_loader = DocumentLoader(f"{base_path}/extracted_texts.json")
 dialogue_loader = DialogueLoader(f"{base_path}/dialogues.json")
 dpo_dialogue_loader = DPODialogueLoader(f"{base_path}/dpo_dialogues.json")
+rules = PedagogicalRules(f"/home/gp1108/Code/Thesis/dataset_generation/prompts/rules.txt")
 
 @app.route("/")
 def home():
@@ -55,6 +57,32 @@ def dialogue_page(dialogue_id):
                            doc_id=doc_id,
                            chunk_ids=chunk_ids,
                            dpo_dialogues=dpo_dialogues)
+
+@app.route('/dpo_dialogue/<dpo_id>')
+def dpo_dialogue_page(dpo_id):
+    dialogue = dpo_dialogue_loader.get_dpo_dialogue_by_id(dpo_id)
+    
+    if not dialogue:
+        return "DPO Dialogue not found", 404
+
+    # Get all turns for this DPO dialogue
+    turns = dpo_dialogue_loader.get_dpo_turns_by_dialogue_id(dpo_id)
+    
+    # Get involved chunks and document
+    chunk_ids = dialogue.get_chunks_ids()
+
+    # Get original dialogue
+    original_diag_id = dialogue.id.split("_dpo")[0]
+
+    doc_id = dialogue.get_doc_id()
+
+    return render_template('dpo_dialogue.html',
+                           dialogue=dialogue,
+                           doc_id=doc_id,
+                           chunk_ids=chunk_ids,
+                           turns=turns,
+                           original_diag_id=original_diag_id,
+                           rules=rules)
 
 if __name__ == "__main__":
     app.run(debug=True)
