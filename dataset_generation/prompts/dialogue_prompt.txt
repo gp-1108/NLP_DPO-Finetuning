@@ -4,6 +4,7 @@ Follow these rules to create the conversation:
 1. The student always starts the conversation
 2. The student has no access to the text. The text is meant as a reference ground for you to create the conversation
 3. The conversation is pertinent to the given text
+4. The tutor answer are detailed with respect to the the given text
 
 Example Input:
 A source text talking about pedagogy
