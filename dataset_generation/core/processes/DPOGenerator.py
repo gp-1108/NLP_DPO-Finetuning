@@ -7,7 +7,7 @@ import random
 from tqdm import tqdm
 
 class UseRuleSchema(BaseModel):
-    use_rule: bool
+    rule_fit_score: int
 
 class GoodAnswerSchema(BaseModel):
     adapted_response: str
@@ -162,10 +162,10 @@ class DPOGenerator:
         response = self._query_openai(prompt, GoodAnswerSchema)
         return response["adapted_response"], response["tutor_response"]
     
-    def _does_rule_get_applied(self,
+    def _get_rule_scoring(self,
                                rule_to_apply: int,
                                dialogue_so_far: list[DPOTurn],
-                               upcoming_turn) -> bool:
+                               upcoming_turn) -> int:
         # If the rule has been applied in the past 3 turns, return False
         if rule_to_apply in [turn.rule_used for turn in dialogue_so_far[-3:]]:
             return False
@@ -173,7 +173,7 @@ class DPOGenerator:
         # Else we will ask OpenAI if the rule should be applied
         prompt = self._generate_prompt_apply_rule(rule_to_apply, dialogue_so_far, upcoming_turn)
         response = self._query_openai(prompt, UseRuleSchema)
-        return response["use_rule"]
+        return response["rule_fit_score"]
 
 
     
