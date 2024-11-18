@@ -58,13 +58,28 @@ class DPOGenerator:
             print(f"Reached the end of the dialogue with ID {dialogue_id}")
             return
         
-        # We need to know which rules should be applied or not
+        # We need to ku
         upcoming_turn = raw_turns[current]
-        applicable_rules = []
+        rules_scores = []
         for rule_idx, rule in self.rules:
-            if self._does_rule_get_applied(rule_idx, dpo_turns, upcoming_turn):
-                applicable_rules.append(rule_idx)
+            score = self._get_rule_scoring(rule_idx, dpo_turns, upcoming_turn)
+            if score < 0 or score > 5:
+                continue
+            rules_scores.append((score, rule_idx))
 
+        # If there are no rules to apply we will just skip this turn
+        if not rules_scores:
+            print(f"No applicable rules for dialogue {dialogue_id} at turn {current}. Skipping.")
+            return
+
+        # Isolating the rules that have the highest score [TODO] you can make it way more efficient
+        rules_scores.sort(reverse=True)
+        max_score = rules_scores[0][0]
+        max_scoring_rules = [rule_idx for score, rule_idx in rules_scores if score == max_score]
+
+        # Now we will randomly select one of the rules to apply
+        applicable_rules = random.sample(max_scoring_rules, min(self.K, len(max_scoring_rules)))
+        
         # Now for each rule we will generate the dpo turn
         local_dpo_turns = []
         for rule_idx in applicable_rules:
@@ -77,14 +92,14 @@ class DPOGenerator:
                 rule_idx,
                 upcoming_turn,
             )
-            # Now the negative answer
-            negative_answer = self._get_bad_answer(rule_idx, adapted_tutor)
+            # # Now the negative answer !MOVED TO USING THE ORIGINAL TUTOR RESPONSE!
+            # negative_answer = self._get_bad_answer(rule_idx, adapted_tutor)
 
             # And now let's generate the dpo turn
             dpo_turn = DPOTurn(
                 student_question=adapted_student,
                 positive_answer=adapted_tutor,
-                negative_answer=negative_answer,
+                negative_answer=upcoming_turn.assistant,
                 rule_used=rule_idx
             )
             local_dpo_turns.append(dpo_turn)
@@ -100,11 +115,9 @@ class DPOGenerator:
             )
             dialogue.save()
 
-        # Out of all the dpo turns we will select k at random to continue the generation
-        selected_dpo_turns = random.sample(local_dpo_turns, min(self.K, len(local_dpo_turns)))
-        # These turns will be used to continue the generation
-        for turn in selected_dpo_turns:
-            self.dfs_generation(dialogue_id, dpo_turns + [turn], raw_turns, current+1)
+        # Out of all the dpo turns generated so far, we will select only one random one to continue
+        to_continue = random.choice(local_dpo_turns)
+        self.dfs_generation(dialogue_id, dpo_turns + [to_continue], raw_turns, current+1)
 
     def _generate_prompt_apply_rule(self,
                                     rule_index: int,
