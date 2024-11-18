@@ -28,7 +28,7 @@ def document_page(doc_id):
                            document=document,
                            dialogues=dialogues)
 
-@app.route('/chunks/<chunk_id>')
+@app.route('/chunk/<chunk_id>')
 def chunk_page(chunk_id):
     # Getting the document id from the chunk id
     document_id = chunk_id.split("_")[0]
