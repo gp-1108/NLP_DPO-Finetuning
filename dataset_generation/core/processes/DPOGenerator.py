@@ -85,6 +85,7 @@ class DPOGenerator:
         for rule_idx in applicable_rules:
             possible_doc_id = DPODialogue.get_id(dialogue_id, [turn.rule_used for turn in dpo_turns]+[rule_idx])
             if possible_doc_id in self.already_processed:
+                print(f"Skipping rule {rule_idx} for dialogue {dialogue_id} as it has already been processed.")
                 continue
             # First the adapted student question and tutor response
             adapted_student, adapted_tutor = self._get_good_answer_and_question(
