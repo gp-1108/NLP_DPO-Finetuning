@@ -63,7 +63,8 @@ class DPOGenerator:
         rules_scores = []
         for rule_idx, rule in self.rules:
             score = self._get_rule_scoring(rule_idx, dpo_turns, upcoming_turn)
-            if score < 0 or score > 5:
+            # We do not want to apply rules that have a score of 3 or less
+            if score not in [4, 5]:
                 continue
             rules_scores.append((score, rule_idx))
 
@@ -126,7 +127,7 @@ class DPOGenerator:
                                     upcoming_turn: Turn) -> str:
         prompt = self.apply_rule_prompt.replace("<PEDAGOGICAL RULE>", self.rules[rule_index])
         con_so_far = ""
-        for turn in dialogue_so_far:
+        for turn in dialogue_so_far[-2:]: # We only need the last two interactions to make a call
             con_so_far += f"Student: {turn.student_question}\n"
             con_so_far += f"Tutor: {turn.positive_answer}\n"
         # If the conversation is empty we will replace the placeholder with an empty string
@@ -180,14 +181,22 @@ class DPOGenerator:
                                rule_to_apply: int,
                                dialogue_so_far: list[DPOTurn],
                                upcoming_turn) -> int:
-        # If the rule has been applied in the past 3 turns, return False
+        # If the rule has been applied in the past 3 turns, return False [TODO] ask confirmation to proceed
         if rule_to_apply in [turn.rule_used for turn in dialogue_so_far[-3:]]:
-            return False
+            return 0
         
         # Else we will ask OpenAI if the rule should be applied
         prompt = self._generate_prompt_apply_rule(rule_to_apply, dialogue_so_far, upcoming_turn)
         response = self._query_openai(prompt, UseRuleSchema)
-        return response["rule_fit_score"]
+        score = response["rule_fit_score"]
+
+        # Manually clipping the score between 1 and 5
+        if score < 1:
+            score = 1
+        elif score > 5:
+            score = 5
+
+        return score
 
 
     
