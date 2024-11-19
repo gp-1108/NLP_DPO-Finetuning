@@ -58,6 +58,10 @@ class ChunkExtractor:
         """
         doc_int_id = self._generate_id()
         doc_id = Document.get_id(doc_int_id)
+        if doc_id in self.already_processed and \
+            self.already_processed.get_document_by_id(doc_id).file_name != os.path.basename(pdf_file):
+            raise ValueError(f"ERROR: Document with ID {doc_id} already processed with a different file name. \
+                             Do not re-run the script with new data if previous data is already present.")
         if doc_id in self.already_processed:
             print(f"Document with ID {doc_id} already processed.")
             return None
