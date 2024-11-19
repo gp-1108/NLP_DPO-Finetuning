@@ -16,10 +16,11 @@ RUN rm -rf /app/NLP_DPO-Finetuning/dataset_visualization/core
 RUN ln -s /app/NLP_DPO-Finetuning/dataset_generation/core /app/NLP_DPO-Finetuning/dataset_visualization/core
 
 # Step 4: Install Python dependencies
+RUN cd /app/NLP_DPO-Finetuning/dataset_visualization
 RUN pip install -r requirements.txt
 
 # Step 6: Expose the port Flask will run on
 EXPOSE 5001
 
 # Step 8: Run the Flask app
-CMD ["python3", "run.py", "/app/NLP_DPO-Finetuning/dataset_generation/data"]
+CMD ["python3", "run.py", "/app/NLP_DPO-Finetuning/dataset_generation/data", "/app/NLP_DPO-Finetuning/dataset_generation/prompts/rules.txt"]

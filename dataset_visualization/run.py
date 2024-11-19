@@ -6,12 +6,14 @@ from sys import argv
 app = Flask(__name__)
 if len(argv) > 1:
     base_path = argv[1]
+    rules_path = argv[2]
 else:
     base_path = "/home/gp1108/Code/Thesis/dataset_generation/data"
+    rules_path = "/home/gp1108/Code/Thesis/dataset_generation/prompts/rules.txt"
 document_loader = DocumentLoader(f"{base_path}/extracted_texts.json")
 dialogue_loader = DialogueLoader(f"{base_path}/dialogues.json")
 dpo_dialogue_loader = DPODialogueLoader(f"{base_path}/dpo_dialogues.json")
-rules = PedagogicalRules(f"/home/gp1108/Code/Thesis/dataset_generation/prompts/rules.txt")
+rules = PedagogicalRules(rules_path)
 
 @app.route("/")
 def home():
