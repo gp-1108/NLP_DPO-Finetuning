@@ -89,6 +89,15 @@ a:hover {
     border: 1px solid #ddd; /* Subtle border for contrast */
 }
 
+.chat-bubble.positive-answer, .chat-bubble.negative-answer {
+    flex: 1; /* Make both answers take equal space */
+    padding: 10px;
+    border-radius: 10px;
+    background-color: #f9f9f9;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    text-align: left;
+}
+
 .chat-answers {
     display: flex;
     justify-content: space-between;
