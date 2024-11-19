@@ -1,5 +1,6 @@
 from .BaseComponent import BaseComponent
 from .Turn import Turn
+from .Chunk import Chunk
 import json
 
 class Dialogue(BaseComponent):
@@ -27,6 +28,12 @@ class Dialogue(BaseComponent):
         doc_id = chunk_ids[0].split("_ch")[0]
         chunk_ids = [chunk_id.split("_ch")[1] for chunk_id in chunk_ids]
         return f"{doc_id}_ch[{'_'.join(chunk_ids)}]"
+    
+    def get_chunk_ids(self):
+        chunks = self.id[self.id.index("[")+1:self.id.index("]")]
+        chunk_int_ids = [int(chunk) for chunk in chunks.split("_")]
+        doc_id = self.id.split("_ch")[0]
+        return [Chunk.get_id(doc_id, chunk_int_id) for chunk_int_id in chunk_int_ids]
     
     def to_json_str(self):
         return json.dumps({
