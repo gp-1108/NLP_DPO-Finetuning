@@ -10,14 +10,10 @@ Example Input:
 A source text talking about pedagogy
 
 Example output:
-A conversation between a student and a tutor in JSON output, following this schema:
-{
-  “dialogue”: [
-     {"student_question": "<student question>", "tutor_response": "<tutor_response>"},
-     {"student_question": "<student question>", "tutor_response": "<tutor_response>"},
-     ...
-  ]
-}
+A dialogue between a student and a tutor in a list format.
+At each step in the dialogue you should have:
+  - student_question: The question asked by the student
+  - tutor_response: The tutor's response to the student's question
 You should always speak in first person, as if you were the student or the tutor. Do not append any prefix to the output strings.
 
 The source text:

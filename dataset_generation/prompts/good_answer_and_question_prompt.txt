@@ -17,11 +17,9 @@ The latest response to the student from the tutor perspective.
 A student question and tutor response to follow as a guideline and to adapt for your task.
 
 Output Format:
-Output the following as a JSON object following this schema:
-{
-  "adapted_response": "<student response>",
-  "tutor_response": "<tutor response>",
-}
+An interaction between a student and a tutor, each interaction should have:
+  - adapted_response: The question asked by the student, adapted to the previous tutor's response if needed
+  - tutor_response: The tutor's response to the student's question
 You should always speak in first person, whether you are the student or the tutor. Do not append any prefix to the output strings.
 
 Last Tutor Response:
