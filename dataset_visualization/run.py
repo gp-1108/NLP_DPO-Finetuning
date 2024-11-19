@@ -92,6 +92,8 @@ def dpo_dialogue_page(dpo_id):
 
 if __name__ == "__main__":
     app.run(
+        ssl_context=("/certs/cert.pem", "/certs/key.pem"),
+        host="0.0.0.0",
         debug=True,
-        port=5001
-        )
+        port=5005
+    )
