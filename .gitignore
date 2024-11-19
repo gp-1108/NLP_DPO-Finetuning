@@ -1,6 +1,7 @@
 *.pyc
 *test*
-dataset_generation/data
+dataset_generation/data/Pedagogy_docs
+dataset_generation/data/sample_data
 venv/
 llama3.1_finetuning/training_files/trained_models/
 *.sif
