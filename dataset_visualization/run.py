@@ -1,9 +1,13 @@
 from flask import Flask, render_template
 from core.loaders import DocumentLoader, DialogueLoader, DPODialogueLoader
 from core.components import PedagogicalRules
+from sys import argv
 
 app = Flask(__name__)
-base_path = "/home/gp1108/Code/Thesis/dataset_generation/data"
+if len(argv) > 1:
+    base_path = argv[1]
+else:
+    base_path = "/home/gp1108/Code/Thesis/dataset_generation/data"
 document_loader = DocumentLoader(f"{base_path}/extracted_texts.json")
 dialogue_loader = DialogueLoader(f"{base_path}/dialogues.json")
 dpo_dialogue_loader = DPODialogueLoader(f"{base_path}/dpo_dialogues.json")
@@ -85,4 +89,7 @@ def dpo_dialogue_page(dpo_id):
                            rules=rules)
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(
+        debug=True,
+        port=5001
+        )
