@@ -198,8 +198,6 @@ class DPOGenerator:
 
         return score
 
-
-    
     def _query_openai(self, prompt: str, schema: BaseModel) -> str:
         completion = self.client.beta.chat.completions.parse(
             model=self.model,
