@@ -8,12 +8,37 @@ from ..components import Chunk
 from ..loaders import DocumentLoader
 
 class ChunkExtractor:
+    """
+    A class for extracting and processing text from PDF files into structured chunks.
+    This class handles the extraction of text from PDF files, processes the text into
+    manageable chunks, and saves the results in a JSONL file format. It includes
+    functionality for text preprocessing, reference removal, and handling of special
+    content like emails and URLs.
+    Attributes:
+        EMAIL_TOKEN (str): Token used to temporarily replace email addresses during processing
+        URL_TOKEN (str): Token used to temporarily replace URLs during processing
+        SMALL_WORDS_TOKEN (str): Token used to temporarily replace small words during processing
+        PUNCTUATION_TOKEN (str): Token used to temporarily replace punctuation during processing
+        CHUNK_MIN_LENGTH (int): Minimum length threshold for text chunks (default: 1000)
+        CHUNK_MAX_LENGTH (int): Maximum length threshold for text chunks (default: 7000)
+        pdfs_path (str): Path to the directory containing PDF files to process
+        output_jsonl (str): Path where the output JSONL file will be saved
+        chunk_min_length (int, optional): Minimum length for text chunks. Defaults to 1000
+        chunk_max_length (int, optional): Maximum length for text chunks. Defaults to 7000
+    Example:
+        >>> extractor = ChunkExtractor("path/to/pdfs", "output.jsonl")
+        >>> extractor.extract_texts()
+        - The class handles PDF processing recursively in the specified directory
+        - Documents are processed only once (duplicates are skipped)
+        - Text chunks are processed to maintain coherence and readability
+        - Special content (emails, URLs) is preserved using token replacement
+    """
     EMAIL_TOKEN = "<EMAIL_TOKEN>"
     URL_TOKEN = "<URL_TOKEN>"
     SMALL_WORDS_TOKEN = "<SMALL_WORDS_TOKEN>"
     PUNCTUATION_TOKEN = "<PUNCTUATION_TOKEN>"
-    CHUNK_MIN_LENGTH = 1000
-    CHUNK_MAX_LENGTH = 7000
+    CHUNK_MIN_LENGTH = 1000 # Minimum length of a chunk
+    CHUNK_MAX_LENGTH = 7000 # Maximum length of a chunk
 
     def __init__(self,
                  pdfs_path: str,
@@ -38,6 +63,23 @@ class ChunkExtractor:
                 print(f"Error while processing file {pdf_file}: {e}")
     
     def extract_single_text(self, pdf_file: str):
+        """
+        Extracts text from a single PDF file and saves it as a Document instance in the database.
+
+        This method reads the PDF file page by page, extracts the text content, and processes it
+        into a Document object. If the text extraction and processing are successful, the document
+        is saved to the database.
+
+        Args:
+            pdf_file (str): The file path to the PDF file to be processed.
+
+        Returns:
+            None
+
+        Note:
+            The method will only save the document if both text extraction and document processing
+            are successful (i.e., if they return non-empty/non-None values).
+        """
         reader = PdfReader(pdf_file)
         text = ""
         for page in reader.pages:
@@ -51,6 +93,15 @@ class ChunkExtractor:
 
     @staticmethod
     def _load_pdf_files(pdfs_path: str) -> list[str]:
+        """
+        Recursively search for PDF files in the specified directory and its subdirectories.
+
+        Args:
+            pdfs_path (str): The root directory path to search for PDF files.
+
+        Returns:
+            list[str]: A list of full paths to all PDF files found in the directory tree.
+        """
         pdf_files = []
         for root, _, filenames in os.walk(pdfs_path):
             for filename in filenames:
@@ -60,7 +111,26 @@ class ChunkExtractor:
 
     def process_text_to_document(self, text: str, pdf_file: str) -> Document:
         """
-        Processes the extracted text and creates a Document instance.
+        Process a text and its corresponding PDF file into a Document object.
+
+        This method performs the following operations:
+        1. Generates a unique document ID
+        2. Checks if the document has already been processed
+        3. Pre-processes the text into chunks
+        4. Creates a Document object with the processed chunks
+
+        Args:
+            text (str): The text content to be processed
+            pdf_file (str): Path to the PDF file associated with the text
+
+        Returns:
+            Document: A Document object containing the processed chunks and metadata
+                     Returns None if:
+                     - Document was already processed
+                     - Text is corrupted or too short (less than 200 words)
+
+        Raises:
+            ValueError: If a document with the same ID exists but with a different file name
         """
         doc_int_id = self._generate_id()
         doc_id = Document.get_id(doc_int_id)
@@ -91,11 +161,34 @@ class ChunkExtractor:
     def _generate_id(self) -> int:
         """
         Generates a unique ID for this run.
+        Ids are generated sequentially starting from 1.
         """
         self.id_counter += 1
         return self.id_counter
 
     def _pre_process(self, text: str) -> list[str]:
+        """
+        Preprocesses the input text by applying a series of transformations and returns a list of text chunks.
+
+        The preprocessing steps include:
+        1. Converting text to ASCII using unidecode
+        2. Removing and storing references
+        3. Extracting and storing emails
+        4. Extracting and storing URLs
+        5. Removing and storing small words (less than 4 characters)
+        6. Removing and storing punctuation
+        7. Restoring small words
+        8. Restoring URLs
+        9. Restoring emails
+        10. Splitting text into chunks based on punctuation
+        11. Unifying and polishing the resulting chunks
+
+        Args:
+            text (str): The input text to be preprocessed
+
+        Returns:
+            list[str]: A list of preprocessed text chunks
+        """
         text = unidecode(text)
         text = self._remove_references(text)
         text, emails = self._remove_emails(text)
@@ -118,13 +211,30 @@ class ChunkExtractor:
         
     def _remove_references(self, text: str) -> str:
         """
-        Removes references from the text.
+        Remove references section from the text.
+        This method attempts to identify and remove the references section from a given text by
+        locating the word "references" that typically indicates the beginning of a bibliography
+        or reference section in academic papers.
+        The method performs a case-insensitive search and handles different variations of how
+        "references" might appear in the text (with spaces before/after, or as part of other words).
+        It removes everything from the identified "references" marker to the end of the text.
 
+        More specifically, the method looks for the last occurrence of the word "references" in the
+        text and removes everything after that point. If the word "references" is part of another
+        word (e.g., "coreferences"), it will not be considered as a valid reference section marker.
+        
         Args:
-            text (str): The text to remove references from.
-
+            text (str): The input text from which to remove the references section.
         Returns:
-            str: The text without references.
+            str: The text with the references section removed. If no valid references section
+                 is found, returns the original text unchanged.
+        Notes:
+            - The method checks for false positives where "references" might be part of other
+              words like "preferences" or "coreferences".
+            - It always takes the last occurrence of "references" in the text, as reference
+              sections typically appear at the end.
+            - If multiple occurrences of "references" exist, only the content after the last
+              valid occurrence is removed.
         """
         # First we need to know how many times the "references" word appears in the text
         search_text = text.lower()
@@ -225,7 +335,19 @@ class ChunkExtractor:
 
     def _unify_chunks(self, chunks: list[str]) -> list[str]:
         """
-        Merges subsequent chunks that are too small or improperly split.
+        Unifies chunks of text based on certain conditions to create more coherent text segments.
+
+        This method combines consecutive chunks if they meet specific criteria:
+        - The last unified chunk is shorter than CHUNK_MIN_LENGTH, or
+        - The current chunk starts with newline/tab/space characters, or
+        - The last chunk ends with newline/tab/space characters
+        AND the combined length is less than CHUNK_MAX_LENGTH
+
+        Args:
+            chunks (list[str]): List of text chunks to be unified
+
+        Returns:
+            list[str]: List of unified text chunks where appropriate chunks have been combined
         """
         if len(chunks) <= 1:
             return chunks

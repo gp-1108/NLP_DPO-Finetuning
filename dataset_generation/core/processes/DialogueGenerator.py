@@ -2,9 +2,8 @@ from openai import OpenAI
 from pydantic import BaseModel
 import os
 from tqdm import tqdm
-from ..loaders import DocumentLoader
+from ..loaders import DocumentLoader, DialogueLoader
 from ..components import Chunk, Dialogue, Turn, Document
-from ..loaders import DialogueLoader
 
 class InteractionSchema(BaseModel):
     student_question: str
@@ -14,6 +13,28 @@ class DialogueSchema(BaseModel):
     dialogue: list[InteractionSchema]
 
 class DialogueGenerator:
+    """
+    A class for generating dialogues between a student and a tutor using OpenAI's API.
+    This class processes text documents by breaking them into chunks, sends them to OpenAI's API
+    with a specified prompt, and generates educational dialogues based on the content. The dialogues
+    are saved in a JSONL format.
+    Attributes:
+        client (OpenAI): OpenAI client instance for API calls
+        model (str): The OpenAI model to use (default: "gpt-4")
+        docs (DocumentLoader): Document loader instance for reading input files
+        output_jsonl (str): Path to the output JSONL file
+        already_processed (DialogueLoader): Loader for tracking processed dialogues
+        prompt (str): Template prompt with <SOURCE_TEXT> placeholder
+        jsonl_file (str): Path to input JSONL file containing source texts
+        output_jsonl (str): Path to output JSONL file for storing generated dialogues
+        prompt_path (str): Path to prompt template file
+        model (str, optional): OpenAI model name. Defaults to "gpt-4"
+        - Requires OpenAI API key set in environment variables
+        - Input JSONL should contain coherent text chunks from PDF files
+        - Prompt file should contain <SOURCE_TEXT> token for replacement
+        - Generates structured dialogues between student and tutor
+        - Handles text in chunks of ~5000 characters with 1000-character overlaps
+    """
     def __init__(self,
                  jsonl_file: str,
                  output_jsonl: str,
@@ -38,6 +59,16 @@ class DialogueGenerator:
         self.prompt = open(prompt_path, "r").read() # The prompt with the <SOURCE_TEXT> token to be replaced
     
     def generate_all(self) -> None:
+        """
+        Generate dialogues for all documents in the dataset.
+
+        Iterates through all documents in self.docs and attempts to generate a dialogue
+        for each one. If an error occurs during generation for a specific document,
+        the error is printed and processing continues with the next document.
+
+        Raises:
+            No direct exceptions, but may print errors from generate_single_dialogue()
+        """
         for doc in tqdm(self.docs):
             try:
                 self.generate_single_dialogue(doc)
@@ -45,6 +76,23 @@ class DialogueGenerator:
                 print(f"Error while processing document {doc.id}: {e}")
     
     def generate_single_dialogue(self, doc: Document) -> None:
+        """
+        Generate a dialogue from a given document.
+
+        This method processes a document by breaking it into chunks, generating dialogues
+        from these chunks using OpenAI's API, and saving the resulting dialogues.
+
+        Args:
+            doc (Document): The document object containing text chunks to be processed.
+
+        Returns:
+            None
+
+        Note:
+            - The method skips already processed dialogues based on their IDs
+            - Dialogues are generated using OpenAI's API
+            - Generated dialogues are saved to storage
+        """
         source_texts = self._define_source_texts(doc.chunks)
         for chunk_ids, source_text in source_texts:
             dialogue_id = Dialogue.get_id(chunk_ids)
@@ -109,13 +157,22 @@ class DialogueGenerator:
     
     def _define_source_texts(self, text_chunks: list[Chunk]) -> list[tuple[list[str], str]]:
         """
-        This function will define the source texts for the dialogues given the original text chunks.
-
+        Organizes text chunks into overlapping segments of approximately 5000 characters each.
+        This method combines consecutive text chunks into larger segments while maintaining
+        1000-character overlaps between adjacent segments to preserve context. Each segment
+        consists of complete chunks that sum up to roughly 5000 characters, plus overlapping
+        portions from neighboring chunks.
         Args:
-            text_chunks (list[Chunk]): A list of Chunk instances.
-
+            text_chunks (list[Chunk]): A list of Chunk objects, each containing text and an ID.
         Returns:
-            list[tuple[list[str], str]]: A list of tuples where each tuple contains a list of chunk IDs and the merged text content.
+            list[tuple[list[str], str]]: A list of tuples where each tuple contains:
+                - list[str]: IDs of the chunks included in the segment
+                - str: The merged text including overlapping portions
+        Notes:
+            - Each segment aims to be around 5000 characters
+            - Includes up to 1000 characters overlap from previous and next chunks
+            - Last segment may be shorter than 5000 characters
+            - Returns empty list if input is empty
         """
         if not text_chunks:
             return []

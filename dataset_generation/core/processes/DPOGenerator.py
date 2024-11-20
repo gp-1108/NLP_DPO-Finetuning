@@ -14,6 +14,20 @@ class GoodAnswerSchema(BaseModel):
     tutor_response: str
 
 class DPOGenerator:
+    """
+    A class for generating Direct Preference Optimization (DPO) training data from dialogue datasets.
+    This class implements a depth-first search approach to generate variations of dialogues by applying
+    pedagogical rules to transform original dialogue turns into preference data. It handles loading
+    dialogues, applying rules, and saving generated preference pairs.
+    Attributes:
+        K (int): Number of leaf nodes to generate for each level of the DFS tree (default: 3)
+        jsonl_file (str): Path to input JSONL file containing original dialogues
+        output_jsonl (str): Path where generated DPO dialogues will be saved
+        rules_txt_path (str): Path to text file containing pedagogical rules
+        good_answer_prompt_path (str): Path to prompt template for generating good answers
+        apply_rule_prompt_path (str): Path to prompt template for rule application
+        model (str, optional): OpenAI model to use for generation (default: "gpt-4o")
+    """
     K = 3 # The number of leafs to generate for each level of the dfs tree
 
     def __init__(self,
@@ -35,6 +49,16 @@ class DPOGenerator:
         self.apply_rule_prompt = open(apply_rule_prompt_path, "r").read()
     
     def generate_all(self) -> None:
+        """
+        Generates preferences data for all dialogues in the dataset.
+
+        This method iterates through all dialogues stored in the instance and attempts to generate
+        preference data for each one. Any errors encountered during processing of individual
+        dialogues are caught and logged.
+
+        Raises:
+            Exception: Prints error message for any exceptions encountered during processing of individual dialogues.
+        """
         for dialogue in tqdm(self.dialogues):
             try:
                 self.generate_single_dialogue(dialogue)
@@ -50,6 +74,26 @@ class DPOGenerator:
                        dpo_turns: list[DPOTurn],
                        raw_turns: list[Turn],
                        current: int) -> None:
+        """
+        Recursively generates DPO (Direct Preference Optimization) dialogues by applying rules to transform raw dialogue turns.
+        This method implements a depth-first search approach to generate variations of dialogues by:
+        1. Evaluating applicable rules for the current turn
+        2. Selecting top scoring rules
+        3. Generating self.K modified turns using selected rules 
+        4. Recursively continuing with one randomly selected modified turn
+        Args:
+            dialogue_id (str): Unique identifier for the original dialogue
+            dpo_turns (list[DPOTurn]): List of previously generated DPO turns in current path
+            raw_turns (list[Turn]): List of original dialogue turns to process
+            current (int): Current position/index in raw_turns being processed
+        Returns:
+            None: Results are saved to output file specified during initialization
+        Note:
+            - Only rules scoring 4 or 5 are considered applicable
+            - At most K rules are randomly selected from highest scoring rules
+            - Generated dialogues are saved before continuing recursion
+            - Method terminates when reaching end of raw turns or when no rules are applicable
+        """
         if current == len(raw_turns):
             print(f"Reached the end of the dialogue with ID {dialogue_id}")
             return
