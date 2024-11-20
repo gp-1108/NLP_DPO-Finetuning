@@ -18,13 +18,24 @@
 ## 🔗 Table of Contents
 
 - [📍 Overview](#-overview)
-- [👾 Features](#-features)
+- [ Features](#-features)
 - [📁 Project Structure](#-project-structure)
   - [📂 Project Index](#-project-index)
 - [🚀 Getting Started](#-getting-started)
   - [☑️ Prerequisites](#-prerequisites)
   - [⚙️ Installation](#-installation)
-  - [🤖 Usage](#🤖-usage)
+  - [🤖 Usage](#-usage)
+- [📜 Architecture Explained](#-architecture-explained)
+  - [Overview](#overview)
+  - [Main Idea](#main-idea)
+  - [ID Structure](#id-structure)
+  - [Understanding the ID Creation Process](#understanding-the-id-creation-process)
+  - [ID Hierarchy and Relationships](#id-hierarchy-and-relationships)
+  - [Example ID Lifecycle](#example-id-lifecycle)
+  - [Workflow](#workflow)
+  - [Applying Pedagogical Rules](#applying-pedagogical-rules)
+  - [Usage Example](#usage-example)
+
 
 ---
 
@@ -231,5 +242,179 @@ You can do so by running the following command:
 
 ### 🤖 Usage
 You can see an example on how to use the project in the `example_usage.ipynb` notebook.
+
+---
+
+## 📜 Architecture Explained
+
+### Overview
+
+The project is designed to generate educational dialogues and Direct Preference Optimization (DPO) training data from PDF documents. It achieves this by extracting text from PDF files, processing the text into manageable chunks, generating dialogues using OpenAI's API, and applying pedagogical rules to create preference data. The architecture is modular, with each component responsible for a specific part of the data generation pipeline.
+
+---
+
+### Main Idea
+
+The main goal is to create a dataset of educational dialogues between a student and a tutor based on content extracted from PDF documents. By applying pedagogical rules, the dialogues are enhanced to improve the learning experience. This dataset can then be used to train AI models to provide better educational assistance.
+
+---
+
+### ID Structure
+
+Unique identifiers (IDs) play a pivotal role in the architecture by encoding hierarchical relationships among documents, chunks, dialogues, and rules. This structure ensures traceability, scalability, and consistency across components. Here is an enhanced explanation of the ID formats and how they are generated:
+
+---
+
+#### **Document IDs (`doc_id`)**
+
+- **Format**: `dc<int>`
+- **Example**: `dc1`, `dc2`
+- **Purpose**: Uniquely identifies a document processed in the pipeline.
+- **Generation**:
+  - Each document is assigned an integer ID (`<int>`) sequentially starting from 1.
+  - The `get_id` method in the `Document` class formats the integer as `dc<int>`.
+
+---
+
+#### **Chunk IDs (`chunk_id`)**
+
+- **Format**: `doc_id_ch<int>`
+- **Example**: `dc1_ch0`, `dc1_ch1`
+- **Purpose**: Identifies individual text chunks extracted from a document.
+- **Generation**:
+  - Each chunk within a document is assigned an integer ID (`<int>`) sequentially starting from 0.
+  - The `get_id` method in the `Chunk` class combines the document ID (`doc_id`) with the chunk number to create a unique chunk ID.
+
+---
+
+#### **Dialogue IDs (`dialogue_id`)**
+
+- **Format**: `doc_id_ch[chunk_numbers]`
+- **Example**: `dc1_ch[0_1_2]`
+- **Purpose**: Represents a dialogue generated from one or more chunks.
+- **Generation**:
+  - The dialogue ID is constructed by listing the chunk numbers within square brackets (`[]`).
+  - The `get_id` method in the `Dialogue` class parses the chunk IDs to extract the document ID (`doc_id`) and appends the chunk numbers.
+
+---
+
+#### **DPO Dialogue IDs (`dpo_dialogue_id`)**
+
+- **Format**: `dialogue_id_dpo[rule_indices]`
+- **Example**: `dc1_ch[0_1]_dpo[2_5]`
+- **Purpose**: Tracks the application of pedagogical rules to a dialogue.
+- **Generation**:
+  - Extends the `dialogue_id` by appending a list of applied rule indices within square brackets (`[]`).
+  - The `get_id` method in the `DPODialogue` class combines the `dialogue_id` with the rule indices to form the `dpo_dialogue_id`.
+
+---
+
+### Understanding the ID Creation Process
+
+Here is an example workflow illustrating how IDs are created at each stage:
+
+1. **Document Processing**:
+   - **Input**: A PDF file is processed by the `ChunkExtractor`.
+   - **Output**: A `Document` object with ID `dc1`.
+
+2. **Chunking**:
+   - The text from `dc1` is split into chunks:
+     - `dc1_ch0`: "Introduction to Algebra..."
+     - `dc1_ch1`: "Linear Equations..."
+     - `dc1_ch2`: "Quadratic Functions..."
+
+3. **Dialogue Generation**:
+   - A dialogue is generated using `dc1_ch0` and `dc1_ch1`:
+     - **Dialogue ID**: `dc1_ch[0_1]`
+
+4. **Applying Pedagogical Rules**:
+   - Rules 2 and 5 are applied to the dialogue:
+     - **DPO Dialogue ID**: `dc1_ch[0_1]_dpo[2_5]`
+
+---
+
+### ID Hierarchy and Relationships
+
+The IDs form a hierarchical structure:
+- **`Document ID` (`doc_id`)**: The root identifier for all subsequent data derived from a document.
+- **`Chunk IDs` (`chunk_id`)**: Directly derived from `doc_id` and represent subdivisions of the document.
+- **`Dialogue IDs` (`dialogue_id`)**: Derived from `chunk_id` and represent groupings of chunks into conversations.
+- **`DPO Dialogue IDs` (`dpo_dialogue_id`)**: Extend `dialogue_id` by appending applied pedagogical rules, enabling traceability of transformations.
+
+This structured approach ensures:
+1. **Scalability**: IDs are designed to handle large datasets with minimal risk of collision.
+2. **Traceability**: Each ID encapsulates information about its origin, facilitating debugging and validation.
+3. **Consistency**: The consistent naming conventions simplify navigation and management of generated data.
+
+---
+
+### Example ID Lifecycle
+
+For a document containing three chunks:
+
+1. Document ID: `dc1`
+2. Chunk IDs:
+   - `dc1_ch0`
+   - `dc1_ch1`
+   - `dc1_ch2`
+3. Dialogue IDs:
+   - `dc1_ch[0_1]`
+   - `dc1_ch[1_2]`
+4. DPO Dialogue IDs:
+   - `dc1_ch[0_1]_dpo[3]` (Rule 3 applied)
+   - `dc1_ch[0_1]_dpo[3_4]` (Rule 4 applied after Rule 3)
+
+This design creates a clear lineage for every piece of data in the pipeline, from its original source to its final processed form.
+
+---
+
+### Workflow
+
+1. **Text Extraction**
+   - Extract PDFs using `ChunkExtractor`.
+   - Clean and split text into chunks.
+   - Assign unique IDs to documents and chunks.
+
+2. **Dialogue Generation**
+   - Use chunks to generate dialogues with `DialogueGenerator`.
+   - Save dialogues with IDs reflecting their source chunks.
+
+3. **DPO Data Generation**
+   - Apply pedagogical rules to dialogues via `DPOGenerator`.
+   - Save generated `DPODialogue` objects with extended IDs.
+
+---
+
+### Applying Pedagogical Rules
+
+Rules are scored for suitability to upcoming dialogue turns. High-scoring rules (4–5) modify tutor responses to enhance learning quality. Both original and adapted answers are saved for training data.
+
+---
+
+### Usage Example
+
+```python
+# Extract text
+extractor = ChunkExtractor(pdfs_path="data/Pedagogy_docs", output_jsonl="data/extracted_texts.json")
+extractor.extract_texts()
+
+# Generate dialogues
+dialogue_gen = DialogueGenerator(
+    jsonl_file="data/extracted_texts.json",
+    output_jsonl="data/dialogues.json",
+    prompt_path="prompts/dialogue_prompt.txt"
+)
+dialogue_gen.generate_all()
+
+# Generate DPO training data
+dpo_gen = DPOGenerator(
+    jsonl_file="data/dialogues.json",
+    output_jsonl="data/dpo_dialogues.json",
+    rules_txt_path="prompts/rules.txt",
+    good_answer_prompt_path="prompts/good_answer_and_question_prompt.txt",
+    apply_rule_prompt_path="prompts/apply_rule_prompt.txt"
+)
+dpo_gen.generate_all()
+
 
 ---
