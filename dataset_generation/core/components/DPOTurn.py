@@ -2,6 +2,21 @@ from .BaseSubComponent import BaseSubComponent
 import json
 
 class DPOTurn(BaseSubComponent):
+    """A class representing a DPO (Direct Preference Optimization) conversational turn.
+    This class inherits from BaseSubComponent and stores information about a single turn
+    in a conversational exchange, including the student's question and two possible answers
+    (positive and negative) along with the rule that was used.
+    Attributes:
+        student_question (str): The question asked by the student
+        positive_answer (str): The preferred/positive response to the question
+        negative_answer (str): The less preferred/negative response to the question  
+        rule_used (int): Identifier for the rule applied in this turn
+    Methods:
+        to_json_str(): Converts the turn data to a JSON string
+        from_json_str(json_str): Populates the turn data from a JSON string
+        __str__(): Returns a shortened string representation of the turn
+        __repr__(): Returns a complete string representation of the turn
+    """
     def __init__(self,
                  student_question: str=None,
                  positive_answer: str=None,

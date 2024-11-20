@@ -3,6 +3,23 @@ from .Chunk import Chunk
 import json
 
 class Document(BaseComponent):
+    """A class representing a document composed of multiple chunks.
+    This class inherits from BaseComponent and provides functionality to manage document data,
+    including chunks of text, file information, and document identification.
+    The class is based on the document ID:
+    - ID: A string that uniquely identifies the document in the format "dc_<int>", where <int> is an integer.
+
+    Attributes:
+        output_file (str): Path to the output file.
+        file_name (str): Name of the document file.
+        id (str): Unique identifier for the document.
+        chunks (list[Chunk]): List of Chunk objects that make up the document.
+    Methods:
+        get_id(int_id): Generates a document ID from an integer.
+        get_chunk_by_id(chunk_id): Retrieves a specific chunk by its ID.
+        to_json_str(): Converts document data to JSON string.
+        from_json_str(json_str): Loads document data from JSON string.
+    """
     def __init__(self,
                  output_file: str=None,
                  file_name: str=None,
@@ -24,10 +41,20 @@ class Document(BaseComponent):
             )
     
     @staticmethod
-    def get_id(int_id):
+    def get_id(int_id: int) -> str:
         return f"dc{int_id}"
     
-    def get_chunk_by_id(self, chunk_id):
+    def get_chunk_by_id(self, chunk_id: str) -> Chunk:
+        """
+        Returns a specific chunk from the document based on its ID.
+
+        Args:
+            chunk_id (str): The unique identifier of the chunk to retrieve.
+
+        Returns:
+            Chunk: The chunk object with the matching ID.
+                Returns None if no chunk with the specified ID is found.
+        """
         for chunk in self.chunks:
             if chunk.id == chunk_id:
                 return chunk
