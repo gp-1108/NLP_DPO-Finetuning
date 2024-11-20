@@ -415,6 +415,6 @@ dpo_gen = DPOGenerator(
     apply_rule_prompt_path="prompts/apply_rule_prompt.txt"
 )
 dpo_gen.generate_all()
-
+```
 
 ---
