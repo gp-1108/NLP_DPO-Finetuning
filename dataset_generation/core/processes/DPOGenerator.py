@@ -14,7 +14,7 @@ class GoodAnswerSchema(BaseModel):
     tutor_response: str
 
 class DPOGenerator:
-    K = 3
+    K = 3 # The number of leafs to generate for each level of the dfs tree
 
     def __init__(self,
                  jsonl_file: str,
@@ -34,13 +34,14 @@ class DPOGenerator:
         self.good_answer_prompt = open(good_answer_prompt_path, "r").read()
         self.apply_rule_prompt = open(apply_rule_prompt_path, "r").read()
     
-    def generate_all(self):
+    def generate_all(self) -> None:
         for dialogue in tqdm(self.dialogues):
-            print(f"Generating dialogue with ID {dialogue.id}")
-            self.generate_single_dialogue(dialogue)
-            print(f"Dialogue with ID {dialogue.id} generated.")
+            try:
+                self.generate_single_dialogue(dialogue)
+            except Exception as e:
+                print(f"Error while processing dialogue {dialogue.id}: {e}")
     
-    def generate_single_dialogue(self, dialogue: Dialogue):
+    def generate_single_dialogue(self, dialogue: Dialogue) -> None:
         raw_turns = dialogue.turns
         self.dfs_generation(dialogue.id, [], raw_turns, 0)
     
@@ -53,7 +54,6 @@ class DPOGenerator:
             print(f"Reached the end of the dialogue with ID {dialogue_id}")
             return
         
-        # We need to ku
         upcoming_turn = raw_turns[current]
         rules_scores = []
         for rule_idx, rule in self.rules:
@@ -73,7 +73,7 @@ class DPOGenerator:
         max_score = rules_scores[0][0]
         max_scoring_rules = [rule_idx for score, rule_idx in rules_scores if score == max_score]
 
-        # Now we will randomly select one of the rules to apply
+        # Now we will randomly select K of the rules to apply
         applicable_rules = random.sample(max_scoring_rules, min(self.K, len(max_scoring_rules)))
         
         # Now for each rule we will generate the dpo turn

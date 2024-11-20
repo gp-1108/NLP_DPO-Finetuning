@@ -1,10 +1,9 @@
 from openai import OpenAI
 from pydantic import BaseModel
 import os
-import json
 from tqdm import tqdm
 from ..loaders import DocumentLoader
-from ..components import Chunk, Dialogue, Turn
+from ..components import Chunk, Dialogue, Turn, Document
 from ..loaders import DialogueLoader
 
 class InteractionSchema(BaseModel):
@@ -38,17 +37,24 @@ class DialogueGenerator:
         self.already_processed = DialogueLoader(output_jsonl)
         self.prompt = open(prompt_path, "r").read() # The prompt with the <SOURCE_TEXT> token to be replaced
     
-    def generate_all(self):
+    def generate_all(self) -> None:
         for doc in tqdm(self.docs):
-            source_texts = self._define_source_texts(doc.chunks)
-            for chunk_ids, source_text in source_texts:
-                dialogue_id = Dialogue.get_id(chunk_ids)
-                if dialogue_id in self.already_processed:
-                    print(f"Dialogue with ID {dialogue_id} already processed.")
-                    continue
-                dialogue_list = self._query_openai(source_text)
-                dialogue = self.create_dialogue(dialogue_list, dialogue_id)
-                dialogue.save()
+            try:
+                self.generate_single_dialogue(doc)
+            except Exception as e:
+                print(f"Error while processing document {doc.id}: {e}")
+    
+    def generate_single_dialogue(self, doc: Document) -> None:
+        source_texts = self._define_source_texts(doc.chunks)
+        for chunk_ids, source_text in source_texts:
+            dialogue_id = Dialogue.get_id(chunk_ids)
+            if dialogue_id in self.already_processed:
+                print(f"Dialogue with ID {dialogue_id} already processed.")
+                continue
+            dialogue_list = self._query_openai(source_text)
+            dialogue = self.create_dialogue(dialogue_list, dialogue_id)
+            dialogue.save()
+
 
     def create_dialogue(self, dialogue: list[dict], dialogue_id: str) -> Dialogue:
         """

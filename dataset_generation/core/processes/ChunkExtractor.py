@@ -32,16 +32,22 @@ class ChunkExtractor:
         Extracts text from all PDF files, processes it, and saves the documents to a JSONL file.
         """
         for pdf_file in tqdm.tqdm(self.pdf_files, desc="Extracting text from PDFs"):
-            reader = PdfReader(pdf_file)
-            text = ""
-            for page in reader.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text += page_text
-            if text:
-                document = self.process_text_to_document(text, pdf_file)
-                if document:
-                    document.save()
+            try:
+                self.extract_single_text(pdf_file)
+            except Exception as e:
+                print(f"Error while processing file {pdf_file}: {e}")
+    
+    def extract_single_text(self, pdf_file: str):
+        reader = PdfReader(pdf_file)
+        text = ""
+        for page in reader.pages:
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text
+        if text:
+            document = self.process_text_to_document(text, pdf_file)
+            if document:
+                document.save()
 
     @staticmethod
     def _load_pdf_files(pdfs_path: str) -> list[str]:
