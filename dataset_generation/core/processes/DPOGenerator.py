@@ -13,9 +13,6 @@ class GoodAnswerSchema(BaseModel):
     adapted_response: str
     tutor_response: str
 
-class BadAnswerSchema(BaseModel):
-    not_following_tutor: str
-
 class DPOGenerator:
     K = 3
 
@@ -24,7 +21,6 @@ class DPOGenerator:
                  output_jsonl: str,
                  rules_txt_path: str,
                  good_answer_prompt_path: str,
-                 bad_answer_prompt_path: str,
                  apply_rule_prompt_path: str,
                  model: str = "gpt-4o"):
         self.model = model
@@ -36,7 +32,6 @@ class DPOGenerator:
         self.already_processed = DPODialogueLoader(output_jsonl)
         self.rules = PedagogicalRules(rules_txt_path)
         self.good_answer_prompt = open(good_answer_prompt_path, "r").read()
-        self.bad_answer_prompt = open(bad_answer_prompt_path, "r").read()
         self.apply_rule_prompt = open(apply_rule_prompt_path, "r").read()
     
     def generate_all(self):
@@ -94,14 +89,12 @@ class DPOGenerator:
                 rule_idx,
                 upcoming_turn,
             )
-            # # Now the negative answer !MOVED TO USING THE ORIGINAL TUTOR RESPONSE!
-            # negative_answer = self._get_bad_answer(rule_idx, adapted_tutor)
 
             # And now let's generate the dpo turn
             dpo_turn = DPOTurn(
                 student_question=adapted_student,
                 positive_answer=adapted_tutor,
-                negative_answer=upcoming_turn.assistant,
+                negative_answer=upcoming_turn.assistant, # using as negative answer the original tutor response without any rule
                 rule_used=rule_idx
             )
             local_dpo_turns.append(dpo_turn)
@@ -153,21 +146,6 @@ class DPOGenerator:
         prompt = prompt.replace("<STUDENT QUESTION>", upcoming_turn.user)
         prompt = prompt.replace("<TUTOR ANSWER>", upcoming_turn.assistant)
         return prompt
-    
-    def _generate_prompt_bad_answer(self,
-                                    rule_to_negate: int,
-                                    good_answer: str) -> str:
-        prompt = self.bad_answer_prompt.replace("<PEDAGOGICAL RULE>", self.rules[rule_to_negate])
-        prompt = prompt.replace("<GOOD TUTOR RESPONSE>", good_answer)
-        return prompt
-    
-    def _get_bad_answer(self,
-                        rule_to_negate: int,
-                        good_answer: str) -> str:
-        prompt = self._generate_prompt_bad_answer(rule_to_negate, good_answer)
-        response = self._query_openai(prompt, BadAnswerSchema)
-        return response["not_following_tutor"]
-
     
     def _get_good_answer_and_question(self,
                                       last_dpo_turn: DPOTurn,
