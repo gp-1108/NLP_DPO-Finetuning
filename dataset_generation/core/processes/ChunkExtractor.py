@@ -6,6 +6,7 @@ import tqdm
 from ..components import Document
 from ..components import Chunk
 from ..loaders import DocumentLoader
+from ..logger import logger, log_call
 
 class ChunkExtractor:
     """
@@ -52,6 +53,7 @@ class ChunkExtractor:
         self.CHUNK_MIN_LENGTH = chunk_min_length
         self.id_counter = 0
 
+    @log_call
     def extract_texts(self):
         """
         Extracts text from all PDF files, processes it, and saves the documents to a JSONL file.
@@ -60,8 +62,9 @@ class ChunkExtractor:
             try:
                 self.extract_single_text(pdf_file)
             except Exception as e:
-                print(f"Error while processing file {pdf_file}: {e}")
+                logger.error(f"Error while processing file {pdf_file}: {e}")
     
+    @log_call(verbose=True)
     def extract_single_text(self, pdf_file: str):
         """
         Extracts text from a single PDF file and saves it as a Document instance in the database.
@@ -139,12 +142,12 @@ class ChunkExtractor:
             raise ValueError(f"ERROR: Document with ID {doc_id} already processed with a different file name. \
                              Do not re-run the script with new data if previous data is already present.")
         if doc_id in self.already_processed:
-            print(f"Document with ID {doc_id} already processed.")
+            logger.info(f"Document with ID {doc_id} already processed.")
             return None
 
         chunks = self._pre_process(text)
         if not chunks or sum(len(chunk.split()) for chunk in chunks) < 200:
-            print(f"Text for file {pdf_file} is probably corrupted or not useful.")
+            logger.warning(f"Text for file {pdf_file} is probably corrupted or not useful.")
             return None
 
         document_chunks = [

@@ -4,6 +4,7 @@ import os
 from tqdm import tqdm
 from ..loaders import DocumentLoader, DialogueLoader
 from ..components import Chunk, Dialogue, Turn, Document
+from ..logger import log_call, logger
 
 class InteractionSchema(BaseModel):
     student_question: str
@@ -58,6 +59,7 @@ class DialogueGenerator:
         self.already_processed = DialogueLoader(output_jsonl)
         self.prompt = open(prompt_path, "r").read() # The prompt with the <SOURCE_TEXT> token to be replaced
     
+    @log_call
     def generate_all(self) -> None:
         """
         Generate dialogues for all documents in the dataset.
@@ -73,8 +75,9 @@ class DialogueGenerator:
             try:
                 self.generate_single_dialogue(doc)
             except Exception as e:
-                print(f"Error while processing document {doc.id}: {e}")
+                logger.error(f"Error while processing document {doc.id}: {e}")
     
+    @log_call(verbose=True)
     def generate_single_dialogue(self, doc: Document) -> None:
         """
         Generate a dialogue from a given document.
@@ -97,7 +100,7 @@ class DialogueGenerator:
         for chunk_ids, source_text in source_texts:
             dialogue_id = Dialogue.get_id(chunk_ids)
             if dialogue_id in self.already_processed:
-                print(f"Dialogue with ID {dialogue_id} already processed.")
+                logger.info(f"Dialogue with ID {dialogue_id} already processed.")
                 continue
             dialogue_list = self._query_openai(source_text)
             dialogue = self.create_dialogue(dialogue_list, dialogue_id)

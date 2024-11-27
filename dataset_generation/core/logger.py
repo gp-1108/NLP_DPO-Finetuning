@@ -1,6 +1,7 @@
 import logging
 from logging.handlers import RotatingFileHandler
 from functools import wraps
+import os
 
 def setup_logger(
     logger_name: str,
@@ -42,7 +43,13 @@ def setup_logger(
 
     return logger
 
-def log_call(logger: logging.Logger, verbose: bool = False):
+# Creating the logger
+if "LOG_FILE_PATH" in os.environ:
+    logger = setup_logger("my_logger", os.environ["LOG_FILE_PATH"])
+else:
+    logger = setup_logger("my_logger", "app.log")
+
+def log_call(verbose: bool = False):
     """
     A decorator to log when a function is called.
 
@@ -52,7 +59,7 @@ def log_call(logger: logging.Logger, verbose: bool = False):
 
     Returns:
     - function: The wrapped function.
-    """
+    """ 
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):

@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import os
 import random
 from tqdm import tqdm
+from ..logger import log_call, logger
 
 class UseRuleSchema(BaseModel):
     rule_fit_score: int
@@ -48,6 +49,7 @@ class DPOGenerator:
         self.good_answer_prompt = open(good_answer_prompt_path, "r").read()
         self.apply_rule_prompt = open(apply_rule_prompt_path, "r").read()
     
+    @log_call
     def generate_all(self) -> None:
         """
         Generates preferences data for all dialogues in the dataset.
@@ -63,8 +65,9 @@ class DPOGenerator:
             try:
                 self.generate_single_dialogue(dialogue)
             except Exception as e:
-                print(f"Error while processing dialogue {dialogue.id}: {e}")
+                logger.error(f"Error while processing dialogue {dialogue.id}: {e}")
     
+    @log_call(verbose=True)
     def generate_single_dialogue(self, dialogue: Dialogue) -> None:
         raw_turns = dialogue.turns
         self.dfs_generation(dialogue.id, [], raw_turns, 0)
@@ -95,7 +98,7 @@ class DPOGenerator:
             - Method terminates when reaching end of raw turns or when no rules are applicable
         """
         if current == len(raw_turns):
-            print(f"Reached the end of the dialogue with ID {dialogue_id}")
+            logger.info(f"Reached the end of the dialogue with ID {dialogue_id}")
             return
         
         upcoming_turn = raw_turns[current]
@@ -109,7 +112,7 @@ class DPOGenerator:
 
         # If there are no rules to apply we will just skip this turn
         if not rules_scores:
-            print(f"No applicable rules for dialogue {dialogue_id} at turn {current}. Skipping.")
+            logger.warning(f"No applicable rules for dialogue {dialogue_id} at turn {current}. Skipping.")
             return
 
         # Isolating the rules that have the highest score [TODO] you can make it way more efficient
@@ -125,7 +128,7 @@ class DPOGenerator:
         for rule_idx in applicable_rules:
             possible_doc_id = DPODialogue.get_id(dialogue_id, [turn.rule_used for turn in dpo_turns]+[rule_idx])
             if possible_doc_id in self.already_processed:
-                print(f"Skipping rule {rule_idx} for dialogue {dialogue_id} as it has already been processed.")
+                logger.info(f"Skipping rule {rule_idx} for dialogue {dialogue_id} as it has already been processed.")
                 continue
             # First the adapted student question and tutor response
             adapted_student, adapted_tutor = self._get_good_answer_and_question(
