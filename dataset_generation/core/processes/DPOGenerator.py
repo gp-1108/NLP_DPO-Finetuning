@@ -63,6 +63,9 @@ class DPOGenerator:
         """
         for dialogue in tqdm(self.dialogues):
             try:
+                if self.already_processed.contains_std_dialogue(dialogue.id):
+                    logger.info(f"Skipping dialogue {dialogue.id} as it has already been processed.")
+                    continue
                 self.generate_single_dialogue(dialogue)
             except Exception as e:
                 logger.error(f"Error while processing dialogue {dialogue.id}: {e}")

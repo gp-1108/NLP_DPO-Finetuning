@@ -130,3 +130,16 @@ class DPODialogueLoader(BaseLoader):
         dpo_dialogues = [dpo_id for dpo_id in unique_dpo_ids if dpo_id.startswith(dialogue_id)]
         dpo_dialogues = [self.data[self.id2idx[dpo_id]] for dpo_id in dpo_dialogues]
         return dpo_dialogues
+    
+    def contains_std_dialogue(self, dialogue_id: str) -> bool:
+        """
+        Checks if a dialogue ID is present in the dataset.
+
+        Args:
+            dialogue_id (str): The dialogue ID to check for, not a DPO id but a standard dialogue id.
+
+        Returns:
+            bool: True if there's at least one DPO dialogue with the given dialogue ID, False otherwise.
+        """
+        # [TODO] This is a naive implementation, maybe come up with a more efficient way to do this
+        return any(dialogue_id in dialogue.id for dialogue in self.data)
