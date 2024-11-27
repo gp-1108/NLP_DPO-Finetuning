@@ -5,7 +5,7 @@ from pydantic import BaseModel
 import os
 import random
 from tqdm import tqdm
-from ..logger import log_call, logger
+from ..logger import logger
 
 class UseRuleSchema(BaseModel):
     rule_fit_score: int
@@ -49,7 +49,6 @@ class DPOGenerator:
         self.good_answer_prompt = open(good_answer_prompt_path, "r").read()
         self.apply_rule_prompt = open(apply_rule_prompt_path, "r").read()
     
-    @log_call
     def generate_all(self) -> None:
         """
         Generates preferences data for all dialogues in the dataset.
@@ -61,6 +60,7 @@ class DPOGenerator:
         Raises:
             Exception: Prints error message for any exceptions encountered during processing of individual dialogues.
         """
+        logger.info(f"Generating DPO dialogues for {len(self.dialogues)} dialogues.")
         for dialogue in tqdm(self.dialogues):
             try:
                 if self.already_processed.contains_std_dialogue(dialogue.id):
@@ -70,8 +70,8 @@ class DPOGenerator:
             except Exception as e:
                 logger.error(f"Error while processing dialogue {dialogue.id}: {e}")
     
-    @log_call(verbose=True)
     def generate_single_dialogue(self, dialogue: Dialogue) -> None:
+        logger.info(f"Generating DPO dialogues for dialogue {dialogue.id}")
         raw_turns = dialogue.turns
         self.dfs_generation(dialogue.id, [], raw_turns, 0)
     

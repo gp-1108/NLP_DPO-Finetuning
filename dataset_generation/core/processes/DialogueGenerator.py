@@ -4,7 +4,9 @@ import os
 from tqdm import tqdm
 from ..loaders import DocumentLoader, DialogueLoader
 from ..components import Chunk, Dialogue, Turn, Document
-from ..logger import log_call, logger
+from ..logger import logger
+import random
+import traceback
 
 class InteractionSchema(BaseModel):
     student_question: str
@@ -59,8 +61,33 @@ class DialogueGenerator:
         self.already_processed = DialogueLoader(output_jsonl)
         self.prompt = open(prompt_path, "r").read() # The prompt with the <SOURCE_TEXT> token to be replaced
     
-    @log_call
-    def generate_all(self) -> None:
+    def _generate_sub_sample(self, max_generations):
+        """
+        This function will generate a sub sample of the source texts.
+        It does so by randomly sampling the source texts and ensuring that we do not sample the same
+        source text we already processed last time.
+        """
+        source_texts = self._generate_all_source_texts()
+        if type(max_generations) == int \
+            and max_generations > 0 \
+            and max_generations < len(source_texts):
+            # Getting the ids of the already processed dialogues
+            already_processed_ids = self.already_processed.get_ids()
+
+            # Filtering out the source texts that have already been processed
+            source_texts = [source_text for source_text in source_texts if Dialogue.get_id(source_text[0]) not in already_processed_ids]
+
+            # Adjusting max generations
+            max_generations = max_generations - len(already_processed_ids) # We want to generate the remaining dialogues
+            max_generations = max(max_generations, 0) # We cannot generate negative dialogues
+            max_generations = min(max_generations, len(source_texts)) # We cannot generate more dialogues than the source texts
+
+            logger.info(f"Aleady processed {len(already_processed_ids)} dialogues. Generating {max_generations} dialogues.")
+            source_texts = random.sample(source_texts, max_generations)
+            
+        return source_texts
+    
+    def generate_all(self, max_generations=None) -> None:
         """
         Generate dialogues for all documents in the dataset.
 
@@ -71,14 +98,27 @@ class DialogueGenerator:
         Raises:
             No direct exceptions, but may print errors from generate_single_dialogue()
         """
-        for doc in tqdm(self.docs):
+        logger.info(f"Generating dialogues for all documents.")
+        source_texts = self._generate_sub_sample(max_generations)
+        for source_text in tqdm(source_texts):
             try:
-                self.generate_single_dialogue(doc)
+                self.generate_single_dialogue(source_text)
             except Exception as e:
-                logger.error(f"Error while processing document {doc.id}: {e}")
+                logger.error(f"Error while processing document {source_text[0]}: {e}\n {traceback.format_exc()}")
     
-    @log_call(verbose=True)
-    def generate_single_dialogue(self, doc: Document) -> None:
+    def _generate_all_source_texts(self):
+        """
+        This function will generate all the source texts from the chunks.
+
+        Returns:
+            list[str]: A list of source texts.
+        """
+        source_texts = []
+        for doc in self.docs:
+            source_texts.extend(self._define_source_texts(doc.chunks))
+        return source_texts
+    
+    def generate_single_dialogue(self, source_texts) -> None:
         """
         Generate a dialogue from a given document.
 
@@ -96,15 +136,14 @@ class DialogueGenerator:
             - Dialogues are generated using OpenAI's API
             - Generated dialogues are saved to storage
         """
-        source_texts = self._define_source_texts(doc.chunks)
-        for chunk_ids, source_text in source_texts:
-            dialogue_id = Dialogue.get_id(chunk_ids)
-            if dialogue_id in self.already_processed:
-                logger.info(f"Dialogue with ID {dialogue_id} already processed.")
-                continue
-            dialogue_list = self._query_openai(source_text)
-            dialogue = self.create_dialogue(dialogue_list, dialogue_id)
-            dialogue.save()
+        logger.info(f"Generating dialogue for chunks {source_texts[0]}")
+        chunk_ids, source_text = source_texts
+        dialogue_id = Dialogue.get_id(chunk_ids)
+        if dialogue_id in self.already_processed:
+            logger.info(f"Dialogue with ID {dialogue_id} already processed.")
+        dialogue_list = self._query_openai(source_text)
+        dialogue = self.create_dialogue(dialogue_list, dialogue_id)
+        dialogue.save()
 
 
     def create_dialogue(self, dialogue: list[dict], dialogue_id: str) -> Dialogue:

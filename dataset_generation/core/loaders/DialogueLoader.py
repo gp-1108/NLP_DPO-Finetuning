@@ -60,3 +60,12 @@ class DialogueLoader(BaseLoader):
         """
         index = {dialogue.id for dialogue in self.data}
         return index
+    
+    def get_ids(self) -> set[str]:
+        """
+        Retrieves a list of all dialogue IDs in the dataset.
+
+        Returns:
+            list: A list containing all dialogue IDs from the loaded data.
+        """
+        return set([dialogue.id for dialogue in self.data])

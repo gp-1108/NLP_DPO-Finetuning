@@ -6,7 +6,7 @@ import tqdm
 from ..components import Document
 from ..components import Chunk
 from ..loaders import DocumentLoader
-from ..logger import logger, log_call
+from ..logger import logger
 
 class ChunkExtractor:
     """
@@ -53,18 +53,17 @@ class ChunkExtractor:
         self.CHUNK_MIN_LENGTH = chunk_min_length
         self.id_counter = 0
 
-    @log_call
     def extract_texts(self):
         """
         Extracts text from all PDF files, processes it, and saves the documents to a JSONL file.
         """
+        logger.info(f"Extracting text from {len(self.pdf_files)} PDF files.")
         for pdf_file in tqdm.tqdm(self.pdf_files, desc="Extracting text from PDFs"):
             try:
                 self.extract_single_text(pdf_file)
             except Exception as e:
                 logger.error(f"Error while processing file {pdf_file}: {e}")
     
-    @log_call(verbose=True)
     def extract_single_text(self, pdf_file: str):
         """
         Extracts text from a single PDF file and saves it as a Document instance in the database.
@@ -83,6 +82,7 @@ class ChunkExtractor:
             The method will only save the document if both text extraction and document processing
             are successful (i.e., if they return non-empty/non-None values).
         """
+        logger.info(f"Extracting text from PDF file: {pdf_file}")
         reader = PdfReader(pdf_file)
         text = ""
         for page in reader.pages:
