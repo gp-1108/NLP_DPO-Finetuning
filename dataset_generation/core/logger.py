@@ -45,9 +45,9 @@ def setup_logger(
 
 # Creating the logger
 if "LOG_FILE_PATH" in os.environ:
-    logger = setup_logger("my_logger", os.environ["LOG_FILE_PATH"])
+    logger = setup_logger("LOGGER", os.environ["LOG_FILE_PATH"])
 else:
-    logger = setup_logger("my_logger", "app.log")
+    logger = setup_logger("LOGGER", "app.log")
 
 def log_call(verbose: bool = False):
     """
