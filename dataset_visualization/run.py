@@ -10,9 +10,9 @@ if len(argv) > 1:
 else:
     base_path = "/home/gp1108/Code/Thesis/dataset_generation/data"
     rules_path = "/home/gp1108/Code/Thesis/dataset_generation/prompts/rules.txt"
-document_loader = DocumentLoader(f"{base_path}/extracted_texts.json")
-dialogue_loader = DialogueLoader(f"{base_path}/dialogues.json")
-dpo_dialogue_loader = DPODialogueLoader(f"{base_path}/dpo_dialogues.json")
+document_loader = DocumentLoader(f"{base_path}/extracted_texts.jsonl")
+dialogue_loader = DialogueLoader(f"{base_path}/dialogues.jsonl")
+dpo_dialogue_loader = DPODialogueLoader(f"{base_path}/dpo_dialogues.jsonl")
 rules = PedagogicalRules(rules_path)
 
 @app.route("/")
