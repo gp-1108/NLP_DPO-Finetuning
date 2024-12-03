@@ -206,12 +206,12 @@ class DPOGenerator:
         return response["adapted_response"], response["tutor_response"]
     
     def _get_rule_scoring(self,
-                               rule_to_apply: int,
-                               dialogue_so_far: list[DPOTurn],
-                               upcoming_turn) -> int:
+                        rule_to_apply: int,
+                        dialogue_so_far: list[DPOTurn],
+                        upcoming_turn) -> int:
         # If the rule has been applied in the past 3 turns, return False [TODO] ask confirmation to proceed
-        if rule_to_apply in [turn.rule_used for turn in dialogue_so_far[-3:]]:
-            return 0
+        # if rule_to_apply in [turn.rule_used for turn in dialogue_so_far[-3:]]:
+        #     return 0
         
         # Else we will ask OpenAI if the rule should be applied
         prompt = self._generate_prompt_apply_rule(rule_to_apply, dialogue_so_far, upcoming_turn)
