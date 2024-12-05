@@ -1,6 +1,6 @@
 import argparse
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
-from peft import PeftConfig, PeftModel
+from peft import PeftConfig, PeftModel, LoraConfig
 from trl import DPOConfig, DPOTrainer
 import utils as ut
 
@@ -51,6 +51,15 @@ def main(args):
         logging_steps=args.logging_steps,
         model_adapter_name="trainable",  # Hardcoded
         ref_adapter_name="reference",  # Hardcoded
+        per_device_train_batch_size=args.batch_size,
+    )
+
+    # Configure Lora
+    peft_config = LoraConfig(
+        r=16,
+        lora_alpha=32,
+        lora_dropout=0.1,
+        target_modules=['q_proj', 'v_proj', 'k_proj', 'o_proj', 'lm_head'],
     )
 
     # Initialize DPO trainer
@@ -61,6 +70,7 @@ def main(args):
         tokenizer=tokenizer,
         train_dataset=dataset["train"],
         eval_dataset=dataset["test"],
+        peft_config=peft_config,
     )
 
     # Train the model
@@ -81,6 +91,7 @@ if __name__ == "__main__":
     parser.add_argument("--loss_type", type=str, default="sigmoid", help="Type of loss to use for training.")
     parser.add_argument("--use_weighting", action="store_true", help="Enable weighting of the loss.")
     parser.add_argument("--rpo_alpha", type=float, default=None, help="Alpha parameter for the RPO paper.")
+    parser.add_argument("--batch_size", type=int, default=8, help="Batch size for training.")
 
     args = parser.parse_args()
     main(args)
