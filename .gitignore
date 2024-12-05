@@ -6,3 +6,4 @@ venv/
 llama3.1_finetuning/training_files/trained_models/
 *.sif
 *.log
+llama3.1_finetuning/output/
