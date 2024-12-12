@@ -1,7 +1,6 @@
-export HF_TOKEN="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"
+export HF_TOKEN="<huggingface token>"
 export HF_HOME="/nfsd/nldei/girottopie/.cache"
-export WANDB_API_KEY="eb53103ea0b3e13ca447067a2385bc8e1d1bfbc0"
-# export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export WANDB_API_KEY="<wandb key>"
 
 accelerate launch --num_processes=1 dpo_finetuning.py \
     --dataset_path ../dataset_generation/data/dpo_dialogues.jsonl \
