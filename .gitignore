@@ -9,3 +9,4 @@ llama3.1_finetuning/training_files/trained_models/
 llama3.1_finetuning/output/
 *output*.txt
 *error*.txt
+llama3.1_dpo/slurm_jobs/
