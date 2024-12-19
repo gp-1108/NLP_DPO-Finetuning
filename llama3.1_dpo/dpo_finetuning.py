@@ -104,11 +104,14 @@ def main(args):
     )
 
     model = get_peft_model(model, peft_config)
+    train_dataset, eval_dataset = dataset["train"], dataset["test"]
 
+    """
     # Prepare everything for training
     model, tokenizer, train_dataset, eval_dataset = accelerator.prepare(
         model, tokenizer, dataset["train"], dataset["test"]
     )
+    """
 
     # Initialize DPO trainer
     accelerator.print("Initializing DPO trainer...")
