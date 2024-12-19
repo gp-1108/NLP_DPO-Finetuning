@@ -6,67 +6,35 @@ import utils as ut
 import torch
 from accelerate import Accelerator
 import os
-wandb_bool = True
-
-if wandb_bool:
-    import wandb
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="my-awesome-project",
-    )
-else:
-    os.environ['WANDB_DISABLED'] = 'true'
-
-def print_memory_usage(description="Memory Usage"):
-    """
-    Prints the current memory usage for all available GPU devices.
-
-    Args:
-        description (str): A short description for context.
-    """
-    if torch.cuda.is_available():
-        print(f"{description}:")
-        for i in range(torch.cuda.device_count()):
-            device = f"cuda:{i}"
-            free_mem, total_mem = torch.cuda.mem_get_info(device)
-            used_mem = total_mem - free_mem
-            total_mem_mb = total_mem / 1024**2  # Convert to MB
-            free_mem_mb = free_mem / 1024**2   # Convert to MB
-            used_mem_mb = used_mem / 1024**2   # Convert to MB
-            print(f"  Device: {device}")
-            print(f"    Total Memory: {total_mem_mb:.2f} MB")
-            print(f"    Used Memory:  {used_mem_mb:.2f} MB")
-            print(f"    Free Memory:  {free_mem_mb:.2f} MB")
-    else:
-        print("CUDA is not available on this system.")
 
 def main(args):
-    if wandb_bool:
+    if args.wandb:
+        import wandb
+        wandb.init(
+            # set the wandb project where this run will be logged
+            project="CHATPED_dpo_llama3.1",
+            config=args,
+        )
         accelerator = Accelerator(
             mixed_precision="no",
             gradient_accumulation_steps=args.gradient_acc,
             log_with="wandb",
         )
     else:
+        os.environ["WANDB_DISABLED"] = "true"
         accelerator = Accelerator(
             mixed_precision="no",
             gradient_accumulation_steps=args.gradient_acc,
         )
 
-
+    # Print arguments
     accelerator.print(args)
-    # print_memory_usage(description="Before anything")
 
     # Load PEFT configuration
     accelerator.print(f"Loading PEFT model configuration from {args.peft_model_id}...")
     config = PeftConfig.from_pretrained(args.peft_model_id)
 
     # Configure quantization
-    """
-    bnb_config = BitsAndBytesConfig(
-        load_in_8bit=args.load_in_8bit, bnb_8bit_quant_type="nf4", bnb_8bit_compute_dtype="float16"
-    )
-    """
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
         llm_int8_threshold=6.0,
@@ -86,13 +54,12 @@ def main(args):
     )
     model.config.use_cache = False
     model.enable_input_require_grads() # To avoid error https://github.com/huggingface/trl/issues/731
-    # print_memory_usage(description="After model init")
 
     # Load tokenizer
     accelerator.print(f"Loading tokenizer from {config.base_model_name_or_path}...")
     tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
-    tokenizer.eos_token = "<|eot_id|>"  # Hardcoded
-    tokenizer.pad_token = "<|finetune_right_pad_id|>"  # Hardcoded
+    tokenizer.eos_token = "<|eot_id|>"  # According to SFT tuning done
+    tokenizer.pad_token = "<|finetune_right_pad_id|>"  # According to SFT tuning done
 
     # Load PEFT model
     accelerator.print(f"Loading PEFT model from {args.peft_model_id}...")
@@ -102,8 +69,7 @@ def main(args):
         adapter_name="trainable",
         is_trainable=True
     )
-    model.load_adapter(args.peft_model_id, adapter_name="reference")  # Hardcoded
-    # print_memory_usage(description="After two adapters")
+    model.load_adapter(args.peft_model_id, adapter_name="reference")
 
     tokenizer.chat_template = None
 
@@ -113,15 +79,6 @@ def main(args):
     dataset = ut.filter_dataset_mad(dataset, tokenizer)
     dataset = dataset.shuffle()
     dataset = dataset.train_test_split(test_size=args.test_split)
-
-
-    """
-    # Setting up the accelerator
-    accelerator_config = Accelerator(
-        mixed_precision="no",
-        log_with="wandb",
-    )
-    """
 
     # Configure training arguments
     training_args = DPOConfig(
@@ -136,8 +93,6 @@ def main(args):
         ref_adapter_name="reference",  # Hardcoded
         per_device_train_batch_size=args.batch_size,
         gradient_accumulation_steps=args.gradient_acc,
-        #max_prompt_length=128,
-        #max_completion_length=512,
     )
 
     # Configure Lora
@@ -145,10 +100,15 @@ def main(args):
         r=16,
         lora_alpha=32,
         lora_dropout=0.1,
-        target_modules=['q_proj', 'v_proj', 'k_proj', 'o_proj', 'lm_head']
+        target_modules=["q_proj", "v_proj", "k_proj", "o_proj", "lm_head"]
     )
 
     model = get_peft_model(model, peft_config)
+
+    # Prepare everything for training
+    model, tokenizer, train_dataset, eval_dataset = accelerator.prepare(
+        model, tokenizer, dataset["train"], dataset["test"]
+    )
 
     # Initialize DPO trainer
     accelerator.print("Initializing DPO trainer...")
@@ -156,14 +116,8 @@ def main(args):
         model=model,
         args=training_args,
         tokenizer=tokenizer,
-        train_dataset=dataset["train"],
-        eval_dataset=dataset["test"],
-        # peft_config=peft_config,
-    )
-
-    # Prepare everything for training
-    model, tokenizer, train_dataset, eval_dataset = accelerator.prepare(
-        model, tokenizer, dataset["train"], dataset["test"]
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
     )
 
     # Train the model
@@ -187,6 +141,7 @@ if __name__ == "__main__":
     parser.add_argument("--rpo_alpha", type=float, default=None, help="Alpha parameter for the RPO paper.")
     parser.add_argument("--batch_size", type=int, default=1, help="Batch size for training per gpu.")
     parser.add_argument("--gradient_acc", type=int, default=1, help="Gradient accumulation steps.")
+    parser.add_argument("--wandb", action="store_true", help="Enable logging with wandb.")
 
     args = parser.parse_args()
     main(args)
