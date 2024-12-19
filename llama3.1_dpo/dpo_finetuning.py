@@ -89,10 +89,12 @@ def main(args):
         rpo_alpha=args.rpo_alpha,
         output_dir=args.output_dir,
         logging_steps=args.logging_steps,
-        model_adapter_name="trainable",  # Hardcoded
-        ref_adapter_name="reference",  # Hardcoded
+        model_adapter_name="trainable",
+        ref_adapter_name="reference",
         per_device_train_batch_size=args.batch_size,
         gradient_accumulation_steps=args.gradient_acc,
+        num_train_epochs=args.epochs,
+        label_pad_token_id=tokenizer.pad_token_id,
     )
 
     # Configure Lora
@@ -105,13 +107,6 @@ def main(args):
 
     model = get_peft_model(model, peft_config)
     train_dataset, eval_dataset = dataset["train"], dataset["test"]
-
-    """
-    # Prepare everything for training
-    model, tokenizer, train_dataset, eval_dataset = accelerator.prepare(
-        model, tokenizer, dataset["train"], dataset["test"]
-    )
-    """
 
     # Initialize DPO trainer
     accelerator.print("Initializing DPO trainer...")
@@ -139,12 +134,20 @@ if __name__ == "__main__":
     parser.add_argument("--logging_steps", type=int, default=1, help="Number of steps for logging during training.")
     parser.add_argument("--learning_rate", type=float, default=1e-6, help="Learning rate for the AdamW optimizer.")
     parser.add_argument("--beta", type=float, default=0.1, help="Parameter controlling deviation from the reference model.")
-    parser.add_argument("--loss_type", type=str, default="sigmoid", help="Type of loss to use for training.")
+    parser.add_argument("--loss_type", type=str, default="sigmoid", 
+                        choices=["sigmoid", "hinge", "ipo", "exo_pair", "nca_pair", "robust", 
+                                "bco_pair", "sppo_hard", "aot", "aot_pair", "discopop", 
+                                "apo_zero", "apo_down"],
+                        help="Type of loss to use for training. Options: sigmoid (DPO), hinge (SLiC), "
+                                "ipo (IPO), exo_pair (EXO), nca_pair (NCA), robust (Robust DPO), "
+                                "bco_pair (BCO), sppo_hard (SPPO), aot/aot_pair (AOT), "
+                                "discopop (DiscoPOP/LRML), apo_zero/apo_down (APO)")
     parser.add_argument("--use_weighting", action="store_true", help="Enable weighting of the loss.")
     parser.add_argument("--rpo_alpha", type=float, default=None, help="Alpha parameter for the RPO paper.")
     parser.add_argument("--batch_size", type=int, default=1, help="Batch size for training per gpu.")
-    parser.add_argument("--gradient_acc", type=int, default=1, help="Gradient accumulation steps.")
+    parser.add_argument("--gradient_acc", type=int, default=4, help="Gradient accumulation steps.")
     parser.add_argument("--wandb", action="store_true", help="Enable logging with wandb.")
+    parser.add_argument("--epochs", type=int, default=1, help="Number of epochs to train the model.")
 
     args = parser.parse_args()
     main(args)

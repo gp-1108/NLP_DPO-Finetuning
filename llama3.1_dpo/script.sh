@@ -28,4 +28,5 @@ apptainer exec \
           --load_in_8bit \
           --batch_size 1 \
           --gradient_acc 4 \
-          --wandb
+          --wandb \
+          --epochs 3
