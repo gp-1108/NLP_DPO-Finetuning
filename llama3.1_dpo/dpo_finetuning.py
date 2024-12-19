@@ -1,11 +1,21 @@
 import argparse
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
-from peft import PeftConfig, PeftModel, LoraConfig
+from peft import PeftConfig, PeftModel, LoraConfig, get_peft_model
 from trl import DPOConfig, DPOTrainer
 import utils as ut
 import torch
 from accelerate import Accelerator
-# import wandb
+import os
+wandb_bool = True
+
+if wandb_bool:
+    import wandb
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="my-awesome-project",
+    )
+else:
+    os.environ['WANDB_DISABLED'] = 'true'
 
 def print_memory_usage(description="Memory Usage"):
     """
@@ -31,23 +41,24 @@ def print_memory_usage(description="Memory Usage"):
         print("CUDA is not available on this system.")
 
 def main(args):
-    """
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="my-awesome-project",
-    )
-    """
+    if wandb_bool:
+        accelerator = Accelerator(
+            mixed_precision="no",
+            gradient_accumulation_steps=args.gradient_acc,
+            log_with="wandb",
+        )
+    else:
+        accelerator = Accelerator(
+            mixed_precision="no",
+            gradient_accumulation_steps=args.gradient_acc,
+        )
 
-    print(args)
-    print_memory_usage(description="Before anything")
 
-    # Load dataset
-    print("Loading dataset...")
-    dataset = ut.load_dataset(args.dataset_path)
-    dataset = dataset.train_test_split(test_size=args.test_split)
+    accelerator.print(args)
+    # print_memory_usage(description="Before anything")
 
     # Load PEFT configuration
-    print(f"Loading PEFT model configuration from {args.peft_model_id}...")
+    accelerator.print(f"Loading PEFT model configuration from {args.peft_model_id}...")
     config = PeftConfig.from_pretrained(args.peft_model_id)
 
     # Configure quantization
@@ -66,26 +77,25 @@ def main(args):
     )
 
     # Load base model
-    print(f"Loading base model from {config.base_model_name_or_path}...")
+    accelerator.print(f"Loading base model from {config.base_model_name_or_path}...")
     model = AutoModelForCausalLM.from_pretrained(
         config.base_model_name_or_path,
         quantization_config=bnb_config,
-        device_map="auto",  # Hardcoded
         trust_remote_code=True,  # Hardcoded
         torch_dtype=torch.bfloat16,
     )
     model.config.use_cache = False
     model.enable_input_require_grads() # To avoid error https://github.com/huggingface/trl/issues/731
-    print_memory_usage(description="After model init")
+    # print_memory_usage(description="After model init")
 
     # Load tokenizer
-    print(f"Loading tokenizer from {config.base_model_name_or_path}...")
+    accelerator.print(f"Loading tokenizer from {config.base_model_name_or_path}...")
     tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
     tokenizer.eos_token = "<|eot_id|>"  # Hardcoded
     tokenizer.pad_token = "<|finetune_right_pad_id|>"  # Hardcoded
 
     # Load PEFT model
-    print(f"Loading PEFT model from {args.peft_model_id}...")
+    accelerator.print(f"Loading PEFT model from {args.peft_model_id}...")
     model = PeftModel.from_pretrained(
         model,
         args.peft_model_id,
@@ -93,9 +103,17 @@ def main(args):
         is_trainable=True
     )
     model.load_adapter(args.peft_model_id, adapter_name="reference")  # Hardcoded
-    print_memory_usage(description="After two adapters")
+    # print_memory_usage(description="After two adapters")
 
     tokenizer.chat_template = None
+
+    # Load dataset
+    accelerator.print("Loading Dataset")
+    dataset = ut.load_dataset(args.dataset_path)
+    dataset = ut.filter_dataset_mad(dataset, tokenizer)
+    dataset = dataset.shuffle()
+    dataset = dataset.train_test_split(test_size=args.test_split)
+
 
     """
     # Setting up the accelerator
@@ -117,7 +135,9 @@ def main(args):
         model_adapter_name="trainable",  # Hardcoded
         ref_adapter_name="reference",  # Hardcoded
         per_device_train_batch_size=args.batch_size,
-        # accelerator_config=accelerator_config,
+        gradient_accumulation_steps=args.gradient_acc,
+        #max_prompt_length=128,
+        #max_completion_length=512,
     )
 
     # Configure Lora
@@ -125,24 +145,31 @@ def main(args):
         r=16,
         lora_alpha=32,
         lora_dropout=0.1,
-        target_modules=['q_proj', 'v_proj', 'k_proj', 'o_proj', 'lm_head'],
+        target_modules=['q_proj', 'v_proj', 'k_proj', 'o_proj', 'lm_head']
     )
 
+    model = get_peft_model(model, peft_config)
+
     # Initialize DPO trainer
-    print("Initializing DPO trainer...")
+    accelerator.print("Initializing DPO trainer...")
     dpo_trainer = DPOTrainer(
         model=model,
         args=training_args,
         tokenizer=tokenizer,
         train_dataset=dataset["train"],
         eval_dataset=dataset["test"],
-        peft_config=peft_config,
+        # peft_config=peft_config,
+    )
+
+    # Prepare everything for training
+    model, tokenizer, train_dataset, eval_dataset = accelerator.prepare(
+        model, tokenizer, dataset["train"], dataset["test"]
     )
 
     # Train the model
-    print("Starting training...")
+    accelerator.print("Starting training...")
     dpo_trainer.train()
-    print("Training complete.")
+    accelerator.print("Training complete.")
     dpo_trainer.save_model()
 
 if __name__ == "__main__":
@@ -152,13 +179,14 @@ if __name__ == "__main__":
     parser.add_argument("--peft_model_id", type=str, required=True, help="Path to the PEFT model directory.")
     parser.add_argument("--load_in_8bit", action="store_true", help="Enable 8-bit quantization.")
     parser.add_argument("--output_dir", type=str, default="Llama31_DPO", help="Directory to save the trained model.")
-    parser.add_argument("--logging_steps", type=int, default=10, help="Number of steps for logging during training.")
+    parser.add_argument("--logging_steps", type=int, default=1, help="Number of steps for logging during training.")
     parser.add_argument("--learning_rate", type=float, default=1e-6, help="Learning rate for the AdamW optimizer.")
     parser.add_argument("--beta", type=float, default=0.1, help="Parameter controlling deviation from the reference model.")
     parser.add_argument("--loss_type", type=str, default="sigmoid", help="Type of loss to use for training.")
     parser.add_argument("--use_weighting", action="store_true", help="Enable weighting of the loss.")
     parser.add_argument("--rpo_alpha", type=float, default=None, help="Alpha parameter for the RPO paper.")
-    parser.add_argument("--batch_size", type=int, default=8, help="Batch size for training.")
+    parser.add_argument("--batch_size", type=int, default=1, help="Batch size for training per gpu.")
+    parser.add_argument("--gradient_acc", type=int, default=1, help="Gradient accumulation steps.")
 
     args = parser.parse_args()
     main(args)
