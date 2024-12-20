@@ -33,8 +33,13 @@ for LR in "${LEARNING_RATES[@]}"; do
             JOB_NAME="dpo_lr${LR}_beta${BETA}_loss${LOSS_TYPE}_weight${WEIGHTING}_alpha${ALPHA}_ep${EPOCH}"
             OUTPUT_DIR="${OUTPUT_DIR_BASE}/${JOB_NAME}"
 
+            # Selecting a random free port to avoid
+            # using the same master port on different processes (multiple jobs same machine)
+            MAIN_PROCESS_PORT=$(shuf -i 20000-30000 -n 1)
+
             # Construct the apptainer exec command with line breaks and backslashes
             CMD="apptainer exec --nv \\
+  --no-home \\
   -B /home/girottopie/.cache \\
   -B /home/girottopie/.triton \\
   -B /nfsd/nldei/girottopie \\
@@ -43,6 +48,7 @@ for LR in "${LEARNING_RATES[@]}"; do
       --num_processes=2 \\
       --num_machines=1 \\
       --mixed_precision=no \\
+      --main_process_port $MAIN_PROCESS_PORT \\
       --dynamo_backend=inductor \\
         dpo_finetuning.py \\
           --dataset_path $DATASET_PATH \\
@@ -68,7 +74,7 @@ for LR in "${LEARNING_RATES[@]}"; do
             JOB_FILE="${JOB_DIR}/${JOB_NAME}.slurm"
             cat <<EOL > $JOB_FILE
 #!/bin/bash
-            
+
 #SBATCH --job-name $JOB_NAME
 #SBATCH --error error_%j.txt
 #SBATCH --output output_%j.txt
@@ -79,8 +85,8 @@ for LR in "${LEARNING_RATES[@]}"; do
 #SBATCH --partition allgroups
 #SBATCH --mem 30G
 #SBATCH --gres=gpu:a40:2
-            
-cd /nfsd/nldei/girottopie/llama3.1_dpo
+
+cd /nfsd/nldei/girottopie/NLP_DPO-Finetuning/llama3.1_dpo
 
 export HF_TOKEN="<token>"
 export HF_HOME="/nfsd/nldei/girottopie/.cache"
