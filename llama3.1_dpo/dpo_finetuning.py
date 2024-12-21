@@ -9,13 +9,6 @@ import os
 import torch.distributed as dist
 
 def main(args):
-    # Initialize the process group for distributed training if needed
-    if dist.is_available() and not dist.is_initialized():
-        dist.init_process_group(
-            backend='nccl',
-            init_method='env://',
-            device_id=torch.device("cuda:0")
-        )
 
     if args.wandb:
         import wandb
@@ -34,6 +27,14 @@ def main(args):
         accelerator = Accelerator(
             mixed_precision="no",
             gradient_accumulation_steps=args.gradient_acc,
+        )
+
+    # Initialize the process group for distributed training if needed
+    if dist.is_available() and not dist.is_initialized():
+        dist.init_process_group(
+            backend='nccl',
+            init_method='env://',
+            # device_id=torch.device("cuda:0")
         )
 
     # Print arguments
@@ -102,9 +103,16 @@ def main(args):
         model_adapter_name="trainable",
         ref_adapter_name="reference",
         per_device_train_batch_size=args.batch_size,
+        per_device_eval_batch_size=args.batch_size,
         gradient_accumulation_steps=args.gradient_acc,
         num_train_epochs=args.epochs,
         label_pad_token_id=tokenizer.pad_token_id,
+        eval_strategy="steps",
+        eval_steps=50,
+        save_strategy="steps",
+        save_total_limit=3,
+        load_best_model_at_end=True,
+        eval_on_start=True,
     )
 
     # Configure Lora
@@ -120,12 +128,14 @@ def main(args):
 
     # Initialize DPO trainer
     accelerator.print("Initializing DPO trainer...")
+
     dpo_trainer = DPOTrainer(
         model=model,
         args=training_args,
         tokenizer=tokenizer,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
+        peft_config=peft_config,
     )
 
     # Train the model
