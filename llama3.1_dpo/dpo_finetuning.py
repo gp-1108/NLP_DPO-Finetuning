@@ -6,8 +6,17 @@ import utils as ut
 import torch
 from accelerate import Accelerator
 import os
+import torch.distributed as dist
 
 def main(args):
+    # Initialize the process group for distributed training if needed
+    if dist.is_available() and not dist.is_initialized():
+        dist.init_process_group(
+            backend='nccl',
+            init_method='env://',
+            device_id=torch.device("cuda:0")
+        )
+
     if args.wandb:
         import wandb
         wandb.init(
@@ -81,6 +90,7 @@ def main(args):
     dataset = dataset.train_test_split(test_size=args.test_split)
 
     # Configure training arguments
+    accelerator.print("Configuring training")
     training_args = DPOConfig(
         learning_rate=args.learning_rate,
         beta=args.beta,
@@ -134,9 +144,9 @@ if __name__ == "__main__":
     parser.add_argument("--logging_steps", type=int, default=1, help="Number of steps for logging during training.")
     parser.add_argument("--learning_rate", type=float, default=1e-6, help="Learning rate for the AdamW optimizer.")
     parser.add_argument("--beta", type=float, default=0.1, help="Parameter controlling deviation from the reference model.")
-    parser.add_argument("--loss_type", type=str, default="sigmoid", 
-                        choices=["sigmoid", "hinge", "ipo", "exo_pair", "nca_pair", "robust", 
-                                "bco_pair", "sppo_hard", "aot", "aot_pair", "discopop", 
+    parser.add_argument("--loss_type", type=str, default="sigmoid",
+                        choices=["sigmoid", "hinge", "ipo", "exo_pair", "nca_pair", "robust",
+                                "bco_pair", "sppo_hard", "aot", "aot_pair", "discopop",
                                 "apo_zero", "apo_down"],
                         help="Type of loss to use for training. Options: sigmoid (DPO), hinge (SLiC), "
                                 "ipo (IPO), exo_pair (EXO), nca_pair (NCA), robust (Robust DPO), "
