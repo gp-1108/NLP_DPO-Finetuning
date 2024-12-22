@@ -112,7 +112,6 @@ def main(args):
         save_strategy="steps",
         save_total_limit=3,
         load_best_model_at_end=True,
-        eval_on_start=True,
     )
 
     # Configure Lora
@@ -123,7 +122,7 @@ def main(args):
         target_modules=["q_proj", "v_proj", "k_proj", "o_proj", "lm_head"]
     )
 
-    model = get_peft_model(model, peft_config)
+    # model = get_peft_model(model, peft_config)
     train_dataset, eval_dataset = dataset["train"], dataset["test"]
 
     # Initialize DPO trainer
@@ -142,7 +141,6 @@ def main(args):
     accelerator.print("Starting training...")
     dpo_trainer.train()
     accelerator.print("Training complete.")
-    dpo_trainer.save_model()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Fine-tune a model using PEFT and DPOTrainer.")
