@@ -9,6 +9,15 @@ import os
 import torch.distributed as dist
 
 def main(args):
+    """
+    if dist.is_available() and not dist.is_initialized():
+        local_rank = int(os.environ["LOCAL_RANK"])  # Get the GPU index for this process
+        dist.init_process_group(
+            backend='nccl',
+            init_method='env://',
+            device_id=torch.device(f"cuda:{local_rank}")
+        )
+    """
 
     if args.wandb:
         import wandb
@@ -29,12 +38,17 @@ def main(args):
             gradient_accumulation_steps=args.gradient_acc,
         )
 
+    accelerator.print("cuda version: {}".format(torch.version.cuda))
+    accelerator.print("CUDA_PATH: {}".format(os.environ["CUDA_PATH"]))
+    accelerator.print("CUDA_HOME: {}".format(os.environ["CUDA_HOME"]))
+
+
     # Initialize the process group for distributed training if needed
     if dist.is_available() and not dist.is_initialized():
+        print("Initializing NCCL")
         dist.init_process_group(
             backend='nccl',
             init_method='env://',
-            # device_id=torch.device("cuda:0")
         )
 
     # Print arguments
@@ -86,7 +100,8 @@ def main(args):
     # Load dataset
     accelerator.print("Loading Dataset")
     dataset = ut.load_dataset(args.dataset_path)
-    dataset = ut.filter_dataset_mad(dataset, tokenizer)
+    # dataset = ut.filter_dataset_mad(dataset, tokenizer)
+    dataset = ut.filter_dataset_by_length(dataset, tokenizer, 3000)
     dataset = dataset.shuffle()
     dataset = dataset.train_test_split(test_size=args.test_split)
 
@@ -122,7 +137,7 @@ def main(args):
         target_modules=["q_proj", "v_proj", "k_proj", "o_proj", "lm_head"]
     )
 
-    # model = get_peft_model(model, peft_config)
+    model = get_peft_model(model, peft_config)
     train_dataset, eval_dataset = dataset["train"], dataset["test"]
 
     # Initialize DPO trainer
