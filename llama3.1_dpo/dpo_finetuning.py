@@ -5,20 +5,19 @@ from trl import DPOConfig, DPOTrainer
 import utils as ut
 import torch
 from accelerate import Accelerator
+from accelerate.utils import InitProcessGroupKwargs
 import os
 import torch.distributed as dist
+import datetime
 
 def main(args):
-    """
-    if dist.is_available() and not dist.is_initialized():
-        local_rank = int(os.environ["LOCAL_RANK"])  # Get the GPU index for this process
-        dist.init_process_group(
-            backend='nccl',
-            init_method='env://',
-            device_id=torch.device(f"cuda:{local_rank}")
-        )
-    """
-
+    # Initialize the process group for distributed training
+    dist.init_process_group(
+        backend='nccl',
+        init_method='env://',
+        timeout=datetime.timedelta(seconds=7200),
+        device_id=torch.device(f"cuda:{os.getenv('LOCAL_RANK')}"), # Assuming correspondence between cuda:<int> and rank <int>
+    )
     if args.wandb:
         import wandb
         wandb.init(
@@ -28,28 +27,16 @@ def main(args):
         )
         accelerator = Accelerator(
             mixed_precision="no",
-            gradient_accumulation_steps=args.gradient_acc,
             log_with="wandb",
         )
     else:
         os.environ["WANDB_DISABLED"] = "true"
         accelerator = Accelerator(
             mixed_precision="no",
-            gradient_accumulation_steps=args.gradient_acc,
         )
 
     accelerator.print("cuda version: {}".format(torch.version.cuda))
-    accelerator.print("CUDA_PATH: {}".format(os.environ["CUDA_PATH"]))
     accelerator.print("CUDA_HOME: {}".format(os.environ["CUDA_HOME"]))
-
-
-    # Initialize the process group for distributed training if needed
-    if dist.is_available() and not dist.is_initialized():
-        print("Initializing NCCL")
-        dist.init_process_group(
-            backend='nccl',
-            init_method='env://',
-        )
 
     # Print arguments
     accelerator.print(args)
@@ -90,10 +77,8 @@ def main(args):
     model = PeftModel.from_pretrained(
         model,
         args.peft_model_id,
-        adapter_name="trainable",
         is_trainable=True
     )
-    model.load_adapter(args.peft_model_id, adapter_name="reference")
 
     tokenizer.chat_template = None
 
@@ -101,7 +86,7 @@ def main(args):
     accelerator.print("Loading Dataset")
     dataset = ut.load_dataset(args.dataset_path)
     # dataset = ut.filter_dataset_mad(dataset, tokenizer)
-    dataset = ut.filter_dataset_by_length(dataset, tokenizer, 3000)
+    # dataset = ut.filter_dataset_by_length(dataset, tokenizer, args.max_len)
     dataset = dataset.shuffle()
     dataset = dataset.train_test_split(test_size=args.test_split)
 
@@ -115,8 +100,6 @@ def main(args):
         rpo_alpha=args.rpo_alpha,
         output_dir=args.output_dir,
         logging_steps=args.logging_steps,
-        model_adapter_name="trainable",
-        ref_adapter_name="reference",
         per_device_train_batch_size=args.batch_size,
         per_device_eval_batch_size=args.batch_size,
         gradient_accumulation_steps=args.gradient_acc,
@@ -127,6 +110,9 @@ def main(args):
         save_strategy="steps",
         save_total_limit=3,
         load_best_model_at_end=True,
+        precompute_ref_log_probs=True,
+        max_length=args.max_len,
+        truncation_mode="keep_end",
     )
 
     # Configure Lora
@@ -137,7 +123,7 @@ def main(args):
         target_modules=["q_proj", "v_proj", "k_proj", "o_proj", "lm_head"]
     )
 
-    model = get_peft_model(model, peft_config)
+    # model = get_peft_model(model, peft_config)
     train_dataset, eval_dataset = dataset["train"], dataset["test"]
 
     # Initialize DPO trainer
@@ -181,6 +167,7 @@ if __name__ == "__main__":
     parser.add_argument("--gradient_acc", type=int, default=4, help="Gradient accumulation steps.")
     parser.add_argument("--wandb", action="store_true", help="Enable logging with wandb.")
     parser.add_argument("--epochs", type=int, default=1, help="Number of epochs to train the model.")
+    parser.add_argument("--max_len", type=int, default=1E6, help="Maximum length of the samples (prompt+max(chosen, rejected))")
 
     args = parser.parse_args()
     main(args)
