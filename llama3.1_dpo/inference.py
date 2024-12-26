@@ -44,14 +44,14 @@ def generate_ans_streamed(prompt, llm_model, tokenizer, device='cuda', max_new_t
     Returns:
         str: Generated response.
     """
-    model.generation_config.eos_token_id = tokenizer.eos_token_id
-    model.generation_config.pad_token_id = tokenizer.eos_token_id
-    model.generation_config.bos_token_id = tokenizer.bos_token_id
-
     tokenized = tokenizer(prompt, return_tensors="pt").to(device)
     input_ids = tokenized['input_ids']
     attention_mask = tokenized['attention_mask']
-    streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+    streamer = TextIteratorStreamer(
+            tokenizer,
+            skip_prompt=True,
+            skip_special_tokens=True
+    )
 
     start_time = time.time()
     thread = Thread(target=llm_model.generate, kwargs={
@@ -90,7 +90,7 @@ def main(args):
         device_map="auto",
         trust_remote_code=True
     )
-    
+
     tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
     tokenizer.eos_token = "<|eot_id|>"
     tokenizer.pad_token = tokenizer.eos_token
@@ -99,6 +99,7 @@ def main(args):
     model.generation_config.eos_token_id = tokenizer.eos_token_id
     model.generation_config.pad_token_id = tokenizer.eos_token_id
     model.generation_config.bos_token_id = tokenizer.bos_token_id
+    model.eval()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -124,12 +125,12 @@ def main(args):
 
         print("Assistant: ", end="")
         response = generate_ans_streamed(
-            prompt_text, 
-            model, 
-            tokenizer, 
-            device, 
-            max_new_tokens=args.max_new_tokens, 
-            temperature=args.temperature, 
+            prompt_text,
+            model,
+            tokenizer,
+            device,
+            max_new_tokens=args.max_new_tokens,
+            temperature=args.temperature,
             verbose=args.verbose
         )
         conversation.append({"role": "assistant", "content": response})
