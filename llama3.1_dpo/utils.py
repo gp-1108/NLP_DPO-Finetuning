@@ -32,7 +32,7 @@ def from_loader_to_pref_std_dataset(loader: DPODialogueLoader):
         dataset_dict["prompt"].append(prompt)
         dataset_dict["chosen"].append(chosen)
         dataset_dict["rejected"].append(rejected)
-    
+
     return Dataset.from_dict(dataset_dict)
 
 def load_dataset(dataset_path: str) -> Dataset:
@@ -54,6 +54,27 @@ def filter_dataset_mad(dataset, tokenizer, threshold=3.5):
     # Ideally we should use eliminate < -3.5 and > 3.5 so it would be np.abs(mod_z_scores) > threshold
     # But we don't really care about the samples that are too short as they do fit in memory
     mask = np.array(mod_z_scores) < threshold
+
+    # Creating a new dataset with the filtered samples
+    new_dataset = {
+        "prompt": [dataset["prompt"][i] for i in range(len(dataset["prompt"])) if mask[i]],
+        "chosen": [dataset["chosen"][i] for i in range(len(dataset["chosen"])) if mask[i]],
+        "rejected": [dataset["rejected"][i] for i in range(len(dataset["rejected"])) if mask[i]]
+    }
+
+    return Dataset.from_dict(new_dataset)
+
+def filter_dataset_by_length(dataset, tokenizer, max_length=None):
+    if not max_length:
+        return dataset
+
+    chosen_lengths = [len(tokenizer.encode(chosen)) for chosen in dataset["chosen"]]
+    rejected_lengths = [len(tokenizer.encode(rejected)) for rejected in dataset["rejected"]]
+    prompt_lengths = [len(tokenizer.encode(prompt)) for prompt in dataset["prompt"]]
+
+    max_lengths = [max(chosen_lengths[i], rejected_lengths[i], prompt_lengths[i]) for i in range(len(chosen_lengths))]
+
+    mask = [max_lengths[i] <= max_length for i in range(len(max_lengths))]
 
     # Creating a new dataset with the filtered samples
     new_dataset = {
