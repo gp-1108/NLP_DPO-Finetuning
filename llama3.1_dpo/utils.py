@@ -92,19 +92,22 @@ def filter_dataset_by_length(dataset, tokenizer, max_length=None):
     if not max_length:
         return dataset
 
-    chosen_lengths = [len(tokenizer.encode(chosen)) for chosen in dataset["chosen"]]
-    rejected_lengths = [len(tokenizer.encode(rejected)) for rejected in dataset["rejected"]]
-    prompt_lengths = [len(tokenizer.encode(prompt)) for prompt in dataset["prompt"]]
+    # Vectorize tokenization
+    chosen_lengths = np.array([len(tokenizer.encode(chosen)) for chosen in dataset["chosen"]])
+    rejected_lengths = np.array([len(tokenizer.encode(rejected)) for rejected in dataset["rejected"]])
+    prompt_lengths = np.array([len(tokenizer.encode(prompt)) for prompt in dataset["prompt"]])
 
-    max_lengths = [max(chosen_lengths[i], rejected_lengths[i])+prompt_lengths[i] for i in range(len(chosen_lengths))]
+    # Vectorized max operation
+    max_lengths = np.maximum(chosen_lengths, rejected_lengths) + prompt_lengths
 
-    mask = [max_lengths[i] <= max_length for i in range(len(max_lengths))]
+    # Create mask using numpy comparison
+    mask = max_lengths <= max_length
 
-    # Creating a new dataset with the filtered samples
+    # Filter using numpy boolean indexing
     new_dataset = {
-        "prompt": [dataset["prompt"][i] for i in range(len(dataset["prompt"])) if mask[i]],
-        "chosen": [dataset["chosen"][i] for i in range(len(dataset["chosen"])) if mask[i]],
-        "rejected": [dataset["rejected"][i] for i in range(len(dataset["rejected"])) if mask[i]]
+        "prompt": np.array(dataset["prompt"])[mask].tolist(),
+        "chosen": np.array(dataset["chosen"])[mask].tolist(),
+        "rejected": np.array(dataset["rejected"])[mask].tolist()
     }
 
     return Dataset.from_dict(new_dataset)
