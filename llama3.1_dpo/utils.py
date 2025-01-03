@@ -72,7 +72,7 @@ def filter_dataset_by_length(dataset, tokenizer, max_length=None):
     rejected_lengths = [len(tokenizer.encode(rejected)) for rejected in dataset["rejected"]]
     prompt_lengths = [len(tokenizer.encode(prompt)) for prompt in dataset["prompt"]]
 
-    max_lengths = [max(chosen_lengths[i], rejected_lengths[i], prompt_lengths[i]) for i in range(len(chosen_lengths))]
+    max_lengths = [max(chosen_lengths[i], rejected_lengths[i])+prompt_lengths[i] for i in range(len(chosen_lengths))]
 
     mask = [max_lengths[i] <= max_length for i in range(len(max_lengths))]
 
